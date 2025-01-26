@@ -1,0 +1,38 @@
+[Mainnet]
+native_api = "https://telos.api.boid.animus.is"
+EVM_ENDPOINT = "https://mainnet.telos.net/evm"
+EVM_CHAIN_ID="40"
+
+[Testnet]
+native_api = "https://telos.testnet.boid.animus.is"
+EVM_ENDPOINT = "https://testnet.telos.net/evm"
+TESTNET_EVM_CHAIN_ID="41"
+
+[Keys]
+priv_key = "xxx" # key provided in old EOSIO format
+testAcc_Key = "xxx" # key provided in old EOSIO format
+EVM_PRIVATE_KEY="xxx"
+
+[EVM_token_contract]
+TOKEN_CONTRACT_DEPLOYER_ACC="0x1D8F40d91602DF5117Bd6D97D2aC4EDE5C9FB300" # address from which you want to deploy the token contract, from private key
+TOKEN_CONTRACT_OWNER_ACC="0x1D8F40d91602DF5117Bd6D97D2aC4EDE5C9FB300" # address which will be the owner of the token contract, from private key
+TOKEN_CONTRACT_DEPLOYED_ACC="0x932Ebc45117A00be19b27A586142b94d14D8a8aA" # address from which the token contract was deployed, from private key
+
+TOKEN_NAME="BOID" # name of the token
+TOKEN_SYMBOL="BOID" # symbol of the token
+
+TESTNET_LZ_ENDPOINT="0x6EDCE65403992e310A62460808c4b910D972f10f" # Layer Zero Endpoint verify here: https://docs.layerzero.network/v2/developers/evm/technical-reference/deployed-contracts
+LZ_ENDPOINT="0x1a44076050125825900e736c501f859c50fE728c" # on mainnet
+
+[EVM_bridge_contract]
+ANTELOPE_BRIDGE_EVM_ADDRESS="0x245aE39B8bd7074febFBF94A8310498E015cC0cB" # Antelope Bridge EVM address that was generated on the account evm.boid on Telos Native
+MAX_REG_REQUEST_PER_REQUESTOR="10"
+MAX_BRIDGE_REQUEST_PER_REQUESTOR="10"
+REQUEST_VALIDITY_SECONDS="1200" # 20 minutes
+PAIR_BRIDGE_REGISTER_ADDRESS="0x510dC84BfaA622f5dEa0B381880fd3F482c7b8Eb" # Pair Bridge Register address when the bridge is deployed
+BRIDGE_FEE="500000000000000000" # 0.5 tokens
+BRIDGE_MIN_AMOUNT="1000000000000000000" # 1 token on the EVM side
+
+[Native_contracts]
+BRIDGE_CONTRACT_NAME="evm.boid"
+FEES_CONTRACT_NAME="xsend.boid"

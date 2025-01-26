@@ -1,0 +1,37 @@
+{
+  "name": "boid-token-evm",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/animuslabs/boid-token-evm.git",
+  "author": "Seth@Boid.com <51824327+mchosc@users.noreply.github.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@layerzerolabs/lz-evm-oapp-v2": "^3.0.38",
+    "@types/node": "^22.10.2",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.4",
+    "nodemon": "^3.1.9",
+    "solc": "^0.8.28",
+    "ts-node": "^10.9.2",
+    "tsc": "^2.0.4",
+    "tsc-alias": "^1.8.10",
+    "typescript": "^5.7.2",
+    "zod": "^3.24.1"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "yarn clean && tsc && tsc-alias -f && yarn copy-files",
+    "copy-files": "copyfiles -u 1 src/**/*.sol dist/",
+    "dev": "nodemon -w ./src -e ts,sol --exec \"yarn build\"",
+    "wallet:generate": "node ./dist/util/wallet.js"
+  },
+  "devDependencies": {
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.36",
+    "@layerzerolabs/oapp-evm": "^0.3.0",
+    "@layerzerolabs/oft-evm": "^3.1.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "chai": "^4.2.0",
+    "copyfiles": "^2.4.1",
+    "rimraf": "^6.0.1"
+  }
+}

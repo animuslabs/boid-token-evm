@@ -1,0 +1,168 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.2",
+    "types": [],
+    "structs": [
+        {
+            "name": "bridgeconfig",
+            "base": "",
+            "fields": [
+                {
+                    "name": "evm_bridge_address",
+                    "type": "checksum160"
+                },
+                {
+                    "name": "evm_bridge_scope",
+                    "type": "uint64"
+                },
+                {
+                    "name": "evm_token_address",
+                    "type": "checksum160"
+                },
+                {
+                    "name": "evm_chain_id",
+                    "type": "uint8"
+                },
+                {
+                    "name": "native_token_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "native_token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "fees_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "is_locked",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "init",
+            "base": "",
+            "fields": [
+                {
+                    "name": "evm_bridge_address",
+                    "type": "checksum160"
+                },
+                {
+                    "name": "evm_token_address",
+                    "type": "checksum160"
+                },
+                {
+                    "name": "evm_chain_id",
+                    "type": "uint8"
+                },
+                {
+                    "name": "native_token_symbol",
+                    "type": "symbol"
+                },
+                {
+                    "name": "native_token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "fees_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "is_locked",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "refundnotify",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "refunds",
+            "base": "",
+            "fields": [
+                {
+                    "name": "refund_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "call_id",
+                    "type": "checksum256"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "time_point"
+                }
+            ]
+        },
+        {
+            "name": "reqnotify",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "requests",
+            "base": "",
+            "fields": [
+                {
+                    "name": "request_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "call_id",
+                    "type": "checksum256"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "time_point"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "init",
+            "type": "init",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "refundnotify",
+            "type": "refundnotify",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "reqnotify",
+            "type": "reqnotify",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "bridgeconfig",
+            "type": "bridgeconfig",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "refunds",
+            "type": "refunds",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "requests",
+            "type": "requests",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "variants": [],
+    "action_results": []
+}
