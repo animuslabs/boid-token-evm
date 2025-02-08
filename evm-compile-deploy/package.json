@@ -7,11 +7,12 @@
   "license": "MIT",
   "dependencies": {
     "@layerzerolabs/lz-evm-oapp-v2": "^3.0.38",
-    "@types/node": "^22.10.2",
+    "@types/node": "^22.12.0",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.4",
     "nodemon": "^3.1.9",
     "solc": "^0.8.28",
+    "toml": "^3.0.0",
     "ts-node": "^10.9.2",
     "tsc": "^2.0.4",
     "tsc-alias": "^1.8.10",

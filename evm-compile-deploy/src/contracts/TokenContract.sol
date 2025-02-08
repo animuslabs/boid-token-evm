@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.22;
+pragma solidity 0.8.23;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -36,7 +36,7 @@ contract TokenContract is AccessControl, OFT {
      * @notice Burn tokens.
      * @dev Only accounts with BRIDGE_ROLE OR DEFAULT_ADMIN_ROLE can call.
      */
-    function burn(address from, uint256 amount)
+    function burnFrom(address from, uint256 amount)
         external
         onlyBridgeOrAdmin
     {

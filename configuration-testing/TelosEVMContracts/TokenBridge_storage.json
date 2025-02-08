@@ -1,0 +1,359 @@
+{
+  "storage": [
+    {
+      "astId": 1402,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "_owner",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_address"
+    },
+    {
+      "astId": 241,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "evm_approvedToken",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_address"
+    },
+    {
+      "astId": 243,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "antelope_bridge_evm_address",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_address"
+    },
+    {
+      "astId": 245,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "fee",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_uint256"
+    },
+    {
+      "astId": 247,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "max_requests_per_requestor",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_uint8"
+    },
+    {
+      "astId": 249,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "antelope_token_contract",
+      "offset": 0,
+      "slot": "5",
+      "type": "t_bytes32"
+    },
+    {
+      "astId": 251,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "antelope_token_name",
+      "offset": 0,
+      "slot": "6",
+      "type": "t_bytes32"
+    },
+    {
+      "astId": 253,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "antelope_symbol",
+      "offset": 0,
+      "slot": "7",
+      "type": "t_bytes32"
+    },
+    {
+      "astId": 304,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "requests",
+      "offset": 0,
+      "slot": "8",
+      "type": "t_array(t_struct(Request)280_storage)dyn_storage"
+    },
+    {
+      "astId": 308,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "refunds",
+      "offset": 0,
+      "slot": "9",
+      "type": "t_array(t_struct(Refund)300_storage)dyn_storage"
+    },
+    {
+      "astId": 318,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "request_counts",
+      "offset": 0,
+      "slot": "10",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "astId": 322,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "requestAttempts",
+      "offset": 0,
+      "slot": "11",
+      "type": "t_mapping(t_uint256,t_uint256)"
+    },
+    {
+      "astId": 326,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "refundAttempts",
+      "offset": 0,
+      "slot": "12",
+      "type": "t_mapping(t_uint256,t_uint256)"
+    },
+    {
+      "astId": 328,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "request_id",
+      "offset": 0,
+      "slot": "13",
+      "type": "t_uint256"
+    },
+    {
+      "astId": 330,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "refund_id",
+      "offset": 0,
+      "slot": "14",
+      "type": "t_uint256"
+    },
+    {
+      "astId": 332,
+      "contract": "TokenBridge.sol:TokenBridge",
+      "label": "min_amount",
+      "offset": 0,
+      "slot": "15",
+      "type": "t_uint256"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_array(t_struct(Refund)300_storage)dyn_storage": {
+      "base": "t_struct(Refund)300_storage",
+      "encoding": "dynamic_array",
+      "label": "struct TokenBridge.Refund[]",
+      "numberOfBytes": "32"
+    },
+    "t_array(t_struct(Request)280_storage)dyn_storage": {
+      "base": "t_struct(Request)280_storage",
+      "encoding": "dynamic_array",
+      "label": "struct TokenBridge.Request[]",
+      "numberOfBytes": "32"
+    },
+    "t_bytes32": {
+      "encoding": "inplace",
+      "label": "bytes32",
+      "numberOfBytes": "32"
+    },
+    "t_enum(RequestStatus)9": {
+      "encoding": "inplace",
+      "label": "enum RequestStatus",
+      "numberOfBytes": "1"
+    },
+    "t_mapping(t_address,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_address",
+      "label": "mapping(address => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_mapping(t_uint256,t_uint256)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => uint256)",
+      "numberOfBytes": "32",
+      "value": "t_uint256"
+    },
+    "t_struct(Refund)300_storage": {
+      "encoding": "inplace",
+      "label": "struct TokenBridge.Refund",
+      "members": [
+        {
+          "astId": 282,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "id",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 284,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "amount",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 286,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "antelope_token_contract",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 288,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "antelope_symbol",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 290,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "receiver",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 292,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "sender",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_address"
+        },
+        {
+          "astId": 294,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "evm_decimals",
+          "offset": 20,
+          "slot": "5",
+          "type": "t_uint8"
+        },
+        {
+          "astId": 297,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "status",
+          "offset": 21,
+          "slot": "5",
+          "type": "t_enum(RequestStatus)9"
+        },
+        {
+          "astId": 299,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "lastAttempt",
+          "offset": 0,
+          "slot": "6",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "224"
+    },
+    "t_struct(Request)280_storage": {
+      "encoding": "inplace",
+      "label": "struct TokenBridge.Request",
+      "members": [
+        {
+          "astId": 258,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "id",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 260,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "sender",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_address"
+        },
+        {
+          "astId": 262,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "amount",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 264,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "requested_at",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 266,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "antelope_token_contract",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 268,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "antelope_symbol",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 270,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "receiver",
+          "offset": 0,
+          "slot": "6",
+          "type": "t_bytes32"
+        },
+        {
+          "astId": 272,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "evm_decimals",
+          "offset": 0,
+          "slot": "7",
+          "type": "t_uint8"
+        },
+        {
+          "astId": 275,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "status",
+          "offset": 1,
+          "slot": "7",
+          "type": "t_enum(RequestStatus)9"
+        },
+        {
+          "astId": 277,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "lastAttempt",
+          "offset": 0,
+          "slot": "8",
+          "type": "t_uint256"
+        },
+        {
+          "astId": 279,
+          "contract": "TokenBridge.sol:TokenBridge",
+          "label": "memo",
+          "offset": 0,
+          "slot": "9",
+          "type": "t_bytes32"
+        }
+      ],
+      "numberOfBytes": "320"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_uint8": {
+      "encoding": "inplace",
+      "label": "uint8",
+      "numberOfBytes": "1"
+    }
+  }
+}

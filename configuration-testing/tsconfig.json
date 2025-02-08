@@ -19,7 +19,7 @@
     "strict": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "rootDir": ".",
+    "rootDir": "src",
     "paths": {
       "*": ["*", "../node_modules/*"],
       "src/*": ["src/*"],

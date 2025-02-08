@@ -17,7 +17,7 @@ const envData = getEnvData(network);
 const contractDeploymentParams: Record<string, any[]> = {
   TokenContract: [ // This to be deployed first
     envData.TOKEN_NAME, // _name
-    envData.TOKEN_SYMBOL, // _symbol
+    envData.TOKEN_NAME, // _symbol (should be the same as _name because its on evm not antelope)
     envData.LZ_ENDPOINT, // _lzEndpoint
     envData.TOKEN_CONTRACT_OWNER, // _delegate
   ],

@@ -43,7 +43,6 @@ const configSchema = z.object({
       .regex(/^0x[a-fA-F0-9]{40}$/, "ANTELOPE_BRIDGE_EVM_ADDRESS must be a valid 40-character hex address prefixed with 0x"),
     MAX_REG_REQUEST_PER_REQUESTOR: z.string().regex(/^\d+$/, "MAX_REG_REQUEST_PER_REQUESTOR must be a numeric string"),
     MAX_BRIDGE_REQUEST_PER_REQUESTOR: z.string().regex(/^\d+$/, "MAX_BRIDGE_REQUEST_PER_REQUESTOR must be a numeric string"),
-    REQUEST_VALIDITY_SECONDS: z.string().regex(/^\d+$/, "REQUEST_VALIDITY_SECONDS must be a numeric string"),
     TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS must be a valid 40-character hex address prefixed with 0x"),
@@ -102,7 +101,6 @@ export function getEnvData(network: "mainnet" | "testnet") {
     ANTELOPE_BRIDGE_EVM_ADDRESS: configuration.EVM_bridge_contract.ANTELOPE_BRIDGE_EVM_ADDRESS,
     MAX_REG_REQUEST_PER_REQUESTOR: configuration.EVM_bridge_contract.MAX_REG_REQUEST_PER_REQUESTOR,
     MAX_BRIDGE_REQUEST_PER_REQUESTOR: configuration.EVM_bridge_contract.MAX_BRIDGE_REQUEST_PER_REQUESTOR,
-    REQUEST_VALIDITY_SECONDS: configuration.EVM_bridge_contract.REQUEST_VALIDITY_SECONDS,
     TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS: configuration.EVM_bridge_contract.TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS,
     BRIDGE_FEE: configuration.EVM_bridge_contract.BRIDGE_FEE,
     BRIDGE_MIN_AMOUNT: configuration.EVM_bridge_contract.BRIDGE_MIN_AMOUNT,

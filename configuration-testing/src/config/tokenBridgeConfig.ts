@@ -5,7 +5,7 @@ import { ActionParams as TknBoidActionParams } from '.././types/token.boid';
 import { ActionParams as XsendBoidActionParams } from '.././types/xsend.boid';
 import { ActionParams as EosioTknActionParams } from '.././types/eosio.token';
 import { ActionParams as EvmBridgeActionParams } from '.././types/evm.boid';
-import { cleanAddress } from '../helperFunctions';
+import { cleanAddress, toObject } from '../helperFunctions';
 
 const key = configuration.Keys.priv_key;
 const testAccKey = configuration.Keys.testAcc_Key;
@@ -46,7 +46,7 @@ export async function initiateContract(chain: "mainnet" | "testnet") {
     }
   };
 
-initiateContract("testnet");
+// initiateContract("testnet");
 
 // Processes failed bridging requests from Antelope to the EVM by refunding tokens to the original sender and notifying the EVM of the successful refund.
 export async function refundnotify(chain: "mainnet" | "testnet") {
@@ -71,6 +71,8 @@ export async function refundnotify(chain: "mainnet" | "testnet") {
     }
   };
 
+
+
 // Processes bridging requests from the EVM to Antelope by transferring or minting tokens for the specified recipient and notifying the EVM of successful completion.
 export async function reqnotify(chain: "mainnet" | "testnet") {
     try {
@@ -90,10 +92,14 @@ export async function reqnotify(chain: "mainnet" | "testnet") {
         console.log("Action successfully sent!");
     } catch (error) {
         const err = error as Error;
-        console.error("Error during permission update flow:", err.message, err.stack);
+        console.error("Error during permission update flow:", toObject(err), err.stack);
     }
     };
 
-// reqnotify("testnet");
+// wait 2 seconds
+// setTimeout(() => {
+//     refundnotify("testnet");
+// }, 2000);
+reqnotify("testnet");
 
 

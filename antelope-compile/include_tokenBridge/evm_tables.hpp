@@ -49,13 +49,19 @@ namespace evm_bridge {
         eosio::indexed_by<eosio::name("bykey"), eosio::const_mem_fun<AccountState, eosio::checksum256, &AccountState::by_key>>
       > account_state_table;
 
-      struct [[eosio::table, eosio::contract(EVM_SYSTEM_CONTRACT)]] evmconfig {
-        uint32_t trx_index = 0;
-        uint32_t last_block = 0;
-        bigint::checksum256 gas_used_block = 0;
-        bigint::checksum256 gas_price = 1;
+      struct [[eosio::table, eosio::contract(EVM_SYSTEM_CONTRACT)]] EvmSysConfig {
+        // A dummy PK so the table can compile
+        uint64_t dummy_pk = 0;
+        uint32_t trx_index;
+        uint32_t last_block;
+        bigint::checksum256 gas_used_block;
+        bigint::checksum256 gas_price;
+        uint32_t revision;
 
-        EOSLIB_SERIALIZE(evmconfig, (trx_index)(last_block)(gas_used_block)(gas_price));
+        // This forces the multi_index to store just one row at key=0
+        uint64_t primary_key() const { return dummy_pk; }
+
+        EOSLIB_SERIALIZE(EvmSysConfig, (trx_index)(last_block)(gas_used_block)(gas_price)(revision));
       };
-      typedef eosio::singleton<"evmconfig"_n, evmconfig> config_singleton_evm;
+      typedef eosio::multi_index<"config"_n, EvmSysConfig> evm_config_table;
 }

@@ -37,9 +37,11 @@ namespace evm_bridge
             using contract::contract;
 
             config_singleton_bridge config_bridge;
-            config_singleton_evm evm_config;
 
-            tokenbridge(name self, name code, datastream<const char*> ds) : contract(self, code, ds), config_bridge(self, self.value), evm_config(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value) { };
+            tokenbridge(name self, name code, datastream<const char*> ds)
+             : contract(self, code, ds),
+              config_bridge(self, self.value) { };
+
             ~tokenbridge() {};
 
             //======================== Admin actions ========================
@@ -55,9 +57,6 @@ namespace evm_bridge
               );
 
             //======================== Token bridge actions ========================
-            // Notifies Antelope of a refund in EVM
-            [[eosio::action]] void refundnotify();
-
             // Notifies Antelope of a bridge request in EVM
             [[eosio::action]] void reqnotify();
 

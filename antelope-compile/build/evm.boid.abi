@@ -76,29 +76,6 @@
             ]
         },
         {
-            "name": "refundnotify",
-            "base": "",
-            "fields": []
-        },
-        {
-            "name": "refunds",
-            "base": "",
-            "fields": [
-                {
-                    "name": "refund_id",
-                    "type": "uint64"
-                },
-                {
-                    "name": "call_id",
-                    "type": "checksum256"
-                },
-                {
-                    "name": "timestamp",
-                    "type": "time_point"
-                }
-            ]
-        },
-        {
             "name": "reqnotify",
             "base": "",
             "fields": []
@@ -129,11 +106,6 @@
             "ricardian_contract": ""
         },
         {
-            "name": "refundnotify",
-            "type": "refundnotify",
-            "ricardian_contract": ""
-        },
-        {
             "name": "reqnotify",
             "type": "reqnotify",
             "ricardian_contract": ""
@@ -143,13 +115,6 @@
         {
             "name": "bridgeconfig",
             "type": "bridgeconfig",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "refunds",
-            "type": "refunds",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

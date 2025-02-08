@@ -24,23 +24,6 @@ namespace evm_bridge {
        indexed_by<"timestamp"_n, const_mem_fun<requests, uint64_t, &requests::by_timestamp >>
     >  requests_table;
 
-    // Bridge refunds
-    struct [[eosio::table, eosio::contract(BRIDGE_CONTRACT_NAME)]] refunds {
-        uint64_t refund_id;
-        eosio::checksum256 call_id;
-        time_point timestamp;
-
-        uint64_t primary_key() const { return refund_id; };
-        eosio::checksum256 by_call_id() const { return call_id; };
-        uint64_t by_timestamp() const {return timestamp.elapsed.to_seconds();}
-
-        EOSLIB_SERIALIZE(refunds, (refund_id)(call_id)(timestamp));
-    };
-    typedef multi_index<name("refunds"), refunds,
-       indexed_by<"callid"_n, eosio::const_mem_fun<refunds, eosio::checksum256, &refunds::by_call_id >>,
-       indexed_by<"timestamp"_n, const_mem_fun<refunds, uint64_t, &refunds::by_timestamp >>
-    >  refunds_table;
-
     // Config
     struct [[eosio::table, eosio::contract(BRIDGE_CONTRACT_NAME)]] bridgeconfig {
         eosio::checksum160 evm_bridge_address;

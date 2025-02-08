@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright (c) 2020 Syed Jafri. All rights reserved.
 // Licensed under the MIT License..
 
 #pragma once
+#include <array>
+#include <cstdint>
+#include <cstring>
 
 using namespace evm_bridge;
 
@@ -142,35 +143,21 @@ namespace evm_bridge
         return toChecksum256(array_slot + position + (property_count * (i)));
   }
 
-  static inline unsigned char decodeHex(char c)
-  {
-      if ('0' <= c && c <= '9') { return c      - '0'; }
-      if ('a' <= c && c <= 'f') { return c + 10 - 'a'; }
-      if ('A' <= c && c <= 'F') { return c + 10 - 'A'; }
-      return 0;
+
+  static std::string normalizeString(const std::string& input) {
+      std::string output = input;
+      std::transform(output.begin(), output.end(), output.begin(), ::tolower);
+      return output;
   }
-
-  static inline std::string decodeHex(std::string const & s)
-  {
-      std::string result;
-      result.reserve(s.size() / 2);
-
-      for (std::size_t i = 0; i < s.size() / 2; ++i)
-      {
-          unsigned char n = decodeHex(s[2 * i]) * 16 + decodeHex(s[2 * i + 1]);
-          result += n;
-      }
-
-      return result;
-  }
-
+  
   // Parses a string from an EVM Storage string (less than < 32bytes only)
-  inline std::string parseStringFromStorage(const uint256_t& checksum) {
-    std::vector<uint8_t> bytes = intx::to_byte_string(checksum);
+  inline std::string parseStringFromStorage(const uint256_t& rawVal) {
+    std::array<uint8_t, 32> arr = {};
+    intx::be::unsafe::store(arr.data(), rawVal);
     std::string result;
-    for (uint8_t byte : bytes) {
-        if (byte == 0) break;  // Stop at null terminator
-        result += static_cast<char>(byte);
+    for (uint8_t b : arr) {
+        if (b == 0) break;
+        result.push_back(static_cast<char>(b));
     }
     return result;
   }
@@ -271,51 +258,70 @@ namespace evm_bridge
   }
 
   /**
-   * RLP
+   * computeDynamicDataKey
+   *
+   * Computes the storage key for a dynamic array element (or a field within that element)
+   * as used in EVM storage layout. The algorithm is:
+   *
+   *   1. Represent the dynamic array's slot (where the length is stored) as a 32-byte big‑endian array.
+   *   2. Compute the base address as: base = keccak256(slot_bytes)
+   *   3. Add the offset: propertyOffset + (elementIndex * slotsPerElement) to the base (interpreted
+   *      as a 256‑bit big‑endian integer).
+   *   4. Return the result as an eosio::checksum256.
+   *
+   * Note: This version manually implements the conversion and addition so it can work in a
+   *       restricted smart contract environment.
    */
-  inline Address generate_address(const Address& sender, uint256_t nonce) {
-    // Sender as bytes
-    auto sender_bytes = toBin(sender);
-    std::array<uint8_t, 20u> sender_bytes_160;
-    std::copy(std::begin(sender_bytes) + 12, std::end(sender_bytes), std::begin(sender_bytes_160));
+  inline eosio::checksum256 computeDynamicDataKey(uint64_t dynamicArraySlot,
+                                                    uint64_t elementIndex,
+                                                    uint64_t slotsPerElement,
+                                                    uint64_t propertyOffset = 0) {
+    // Step 1: Convert dynamicArraySlot to a 32-byte big-endian array.
+    std::array<uint8_t, 32> slotBytes = {}; // Initialized to all zeros.
+    for (int i = 0; i < 8; i++) {
+        // Write each byte starting at the end.
+        slotBytes[31 - i] = static_cast<uint8_t>((dynamicArraySlot >> (i * 8)) & 0xFF);
+    }
 
-    // RLP encode and keccak hash
-    const auto rlp_encoding = rlp::encode(sender_bytes_160, (uint64_t) nonce);
-    std::array<uint8_t, 32u> buffer = keccak_256(rlp_encoding);
+    // Step 2: Compute the base address using keccak256.
+    // This function should accept a std::array<uint8_t,32> and return a std::array<uint8_t,32>.
+    std::array<uint8_t, 32> base = evm_bridge::keccak_256(slotBytes);
 
-    // Copy right 160 bits from keccak buffer
-    uint8_t right_160[32] = {};
-    memcpy(right_160 + 12u, buffer.data() + 12u, 20u);
+    // Step 3: Compute the additional offset.
+    uint64_t offset = propertyOffset + (elementIndex * slotsPerElement);
 
-    // Return as address
-    return intx::be::load<uint256_t>(right_160);
-  };
+    // Step 4: Add the offset to the base (treating base as a big-endian 256-bit integer).
+    // We add the offset to the low-order 8 bytes.
+    std::array<uint8_t, 32> finalValue = base;
+    uint64_t carry = offset;
+    for (int i = 31; i >= 0 && carry != 0; --i) {
+        // Sum current byte with the lowest byte of carry.
+        uint16_t sum = static_cast<uint16_t>(finalValue[i]) + (carry & 0xFF);
+        finalValue[i] = static_cast<uint8_t>(sum & 0xFF);
+        // Update carry: shift carry by 8 bits plus any overflow from this addition.
+        carry = (carry >> 8) + (sum >> 8);
+    }
 
-  inline Address generate_address2(const Address& sender, const uint256_t& salt, const std::vector<uint8_t>& init_code) {
-    // Sender as bytes
-    auto sender_bytes = toBin(sender);
+    // Step 5: Convert the final 32-byte array into an eosio::checksum256.
+    // Many EOSIO toolchains allow constructing a checksum256 directly from a std::array.
+    return eosio::checksum256(finalValue);
+  }
 
-    // Code hash
-    std::array<uint8_t, 32u> code_hash = keccak_256(init_code);
+     // Structure to hold parsed token symbol information.
+   struct token_symbol_info {
+      uint8_t precision;
+      std::string code;
+   };
 
-    // Salt array
-    uint8_t salt_bytes[32] = {};
-    intx::be::store(salt_bytes, salt);
-
-    // Concatenate
-    std::array<uint8_t, 85u> final = {0xff};
-    std::copy(std::begin(sender_bytes) + 12, std::end(sender_bytes), std::begin(final) + 1);
-    std::copy(salt_bytes, salt_bytes + 32, std::begin(final) + 21);
-    std::copy(std::begin(code_hash), std::end(code_hash), std::begin(final) + 53);
-
-    // Final hash
-    auto final_hash = keccak_256(final);
-
-    // Copy right 160 bits from keccak buffer
-    uint8_t right_160[32] = {};
-    memcpy(right_160 + 12u, final_hash.data() + 12u, 20u);
-
-    // Return as address
-    return intx::be::load<uint256_t>(right_160);
-  };
+   // Helper function to manually convert a string of digits to an integer.
+   // Assumes that the input contains only digit characters.
+   static inline uint8_t parseUint8(const std::string& numStr) {
+      uint8_t value = 0;
+      for (char c : numStr) {
+         // Ensure character is a digit (you could also use a check here)
+         eosio::check(c >= '0' && c <= '9', "Invalid character in token symbol precision");
+         value = value * 10 + (c - '0');
+      }
+      return value;
+   }
 } // namespace bridge_evm
