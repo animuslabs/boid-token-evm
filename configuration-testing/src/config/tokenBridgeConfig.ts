@@ -48,37 +48,14 @@ export async function initiateContract(chain: "mainnet" | "testnet") {
 
 // initiateContract("testnet");
 
-// Processes failed bridging requests from Antelope to the EVM by refunding tokens to the original sender and notifying the EVM of the successful refund.
-export async function refundnotify(chain: "mainnet" | "testnet") {
-    try {
-        const acc = "evm.boid";
-        
-        const dataObject: EvmBridgeActionParams.refundnotify = {};
-        createAndSendAction(
-            chain,
-            acc,
-            "refundnotify",
-            acc,
-            "active",
-            dataObject,
-            key
-        )
-
-      console.log("Action successfully sent!");
-    } catch (error) {
-      const err = error as Error;
-      console.error("Error during permission update flow:", err.message, err.stack);
-    }
-  };
-
-
-
 // Processes bridging requests from the EVM to Antelope by transferring or minting tokens for the specified recipient and notifying the EVM of successful completion.
-export async function reqnotify(chain: "mainnet" | "testnet") {
+export async function reqnotify(chain: "mainnet" | "testnet", req_id: number) {
     try {
         const acc = "evm.boid";
         
-        const dataObject: EvmBridgeActionParams.reqnotify = {};
+        const dataObject: EvmBridgeActionParams.reqnotify = {
+            req_id: req_id
+        };
         createAndSendAction(
             chain,
             acc,
@@ -96,10 +73,30 @@ export async function reqnotify(chain: "mainnet" | "testnet") {
     }
     };
 
-// wait 2 seconds
-// setTimeout(() => {
-//     refundnotify("testnet");
-// }, 2000);
-reqnotify("testnet");
+reqnotify("testnet", 6);
+reqnotify("testnet", 7);
+reqnotify("testnet", 5);
 
+// function to refund stuck requests
+export async function refundStuckReq(chain: "mainnet" | "testnet") {
+    try {
+        const acc = "evm.boid";
+        const dataObject: EvmBridgeActionParams.refstuckreq = {
+            // req_index: req_index
+        };
+        createAndSendAction(
+            chain,
+            acc,
+            "refstuckreq",
+            acc,
+            "active",
+            dataObject,
+            key
+        )
+    } catch (error) {
+        const err = error as Error;
+        console.error("Error during permission update flow:", toObject(err), err.stack);
+    }
+}
 
+// refundStuckReq("testnet");

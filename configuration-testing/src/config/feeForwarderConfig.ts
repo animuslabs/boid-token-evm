@@ -24,7 +24,8 @@ export async function setGlobalConfig(chain: "mainnet" | "testnet") {
             fee_token_contract: Name.from("eosio.token"),
             fee_token_symbol: Asset.Symbol.from("4,TLOS"),
             bridge_account: Name.from("evm.boid"),
-            evm_memo: "0x245ae39b8bd7074febfbf94a8310498e015cc0cb"
+            evm_memo: "0x245ae39b8bd7074febfbf94a8310498e015cc0cb",
+            fee_receiver: Name.from("eosio.evm")
         };
         createAndSendAction(
             chain,
@@ -161,4 +162,4 @@ export async function sendBOID(chain: "mainnet" | "testnet") {
     }
   };
 
-sendBOID("testnet");
+// sendBOID("testnet");

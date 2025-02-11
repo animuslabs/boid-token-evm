@@ -57,12 +57,19 @@ namespace evm_bridge
               );
 
             //======================== Token bridge actions ========================
-            // Notifies Antelope of a bridge request in EVM
-            [[eosio::action]] void reqnotify();
+            // Notifies Antelope of a bridge request in EVM and gets it ready for processing
+            [[eosio::action]] void reqnotify(uint64_t req_id);
+
+            // calls an action on the EVM to refund stuck requests
+            [[eosio::action]] void refstuckreq();
+
+            // Verify that a request is still present on the EVM if not release the funds
+            [[eosio::action]] void verifytrx(uint64_t req_id);
 
             // Bridge to EVM
             [[eosio::on_notify("*::transfer")]] void bridge(eosio::name from, eosio::name to, eosio::asset quantity, std::string memo);
 
-
+            // Remove a request from the table
+            [[eosio::action]] void rmreq(uint64_t req_id);
     };
 }

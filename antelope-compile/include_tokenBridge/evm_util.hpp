@@ -257,71 +257,57 @@ namespace evm_bridge
     return keccak_256(a.data(), N);
   }
 
-  /**
-   * computeDynamicDataKey
-   *
-   * Computes the storage key for a dynamic array element (or a field within that element)
-   * as used in EVM storage layout. The algorithm is:
-   *
-   *   1. Represent the dynamic array's slot (where the length is stored) as a 32-byte big‑endian array.
-   *   2. Compute the base address as: base = keccak256(slot_bytes)
-   *   3. Add the offset: propertyOffset + (elementIndex * slotsPerElement) to the base (interpreted
-   *      as a 256‑bit big‑endian integer).
-   *   4. Return the result as an eosio::checksum256.
-   *
-   * Note: This version manually implements the conversion and addition so it can work in a
-   *       restricted smart contract environment.
-   */
-  inline eosio::checksum256 computeDynamicDataKey(uint64_t dynamicArraySlot,
-                                                    uint64_t elementIndex,
-                                                    uint64_t slotsPerElement,
-                                                    uint64_t propertyOffset = 0) {
-    // Step 1: Convert dynamicArraySlot to a 32-byte big-endian array.
-    std::array<uint8_t, 32> slotBytes = {}; // Initialized to all zeros.
-    for (int i = 0; i < 8; i++) {
-        // Write each byte starting at the end.
-        slotBytes[31 - i] = static_cast<uint8_t>((dynamicArraySlot >> (i * 8)) & 0xFF);
-    }
-
-    // Step 2: Compute the base address using keccak256.
-    // This function should accept a std::array<uint8_t,32> and return a std::array<uint8_t,32>.
-    std::array<uint8_t, 32> base = evm_bridge::keccak_256(slotBytes);
-
-    // Step 3: Compute the additional offset.
-    uint64_t offset = propertyOffset + (elementIndex * slotsPerElement);
-
-    // Step 4: Add the offset to the base (treating base as a big-endian 256-bit integer).
-    // We add the offset to the low-order 8 bytes.
-    std::array<uint8_t, 32> finalValue = base;
-    uint64_t carry = offset;
-    for (int i = 31; i >= 0 && carry != 0; --i) {
-        // Sum current byte with the lowest byte of carry.
-        uint16_t sum = static_cast<uint16_t>(finalValue[i]) + (carry & 0xFF);
-        finalValue[i] = static_cast<uint8_t>(sum & 0xFF);
-        // Update carry: shift carry by 8 bits plus any overflow from this addition.
-        carry = (carry >> 8) + (sum >> 8);
-    }
-
-    // Step 5: Convert the final 32-byte array into an eosio::checksum256.
-    // Many EOSIO toolchains allow constructing a checksum256 directly from a std::array.
-    return eosio::checksum256(finalValue);
+  inline eosio::checksum256 addToChecksum256(const eosio::checksum256& base, uint8_t offset) {
+      // Extract the underlying 32-byte array.
+      auto arr = base.extract_as_byte_array();
+      uint64_t carry = offset;
+      // Add the offset to the big‑endian number (starting at the least-significant byte).
+      for (int i = 31; i >= 0 && carry != 0; --i) {
+          uint16_t sum = static_cast<uint16_t>(arr[i]) + (carry & 0xFF);
+          arr[i] = static_cast<uint8_t>(sum & 0xFF);
+          carry = (carry >> 8) + (sum >> 8);
+      }
+      return eosio::checksum256(arr);
   }
 
-     // Structure to hold parsed token symbol information.
-   struct token_symbol_info {
-      uint8_t precision;
-      std::string code;
-   };
-
-   // Helper function to manually convert a string of digits to an integer.
-   // Assumes that the input contains only digit characters.
-   static inline uint8_t parseUint8(const std::string& numStr) {
-      uint8_t value = 0;
-      for (char c : numStr) {
-         // Ensure character is a digit (you could also use a check here)
-         eosio::check(c >= '0' && c <= '9', "Invalid character in token symbol precision");
-         value = value * 10 + (c - '0');
+  inline eosio::checksum256 computeMappingKey(uint64_t req_id, uint64_t mapping_base_slot) {
+      // Create a 32-byte array for req_id (all zeros)
+      std::array<uint8_t, 32> reqIdBytes = {0};
+      // Encode req_id into the lower 8 bytes (big-endian)
+      for (uint8_t i = 0; i < 8; i++) {
+          reqIdBytes[31 - i] = static_cast<uint8_t>((req_id >> (i * 8)) & 0xFF);
       }
-      return value;
-   }
+      
+      // Create a 32-byte array for mapping_base_slot (all zeros)
+      std::array<uint8_t, 32> baseSlotBytes = {0};
+      // Encode mapping_base_slot into the lower 8 bytes (big-endian)
+      for (uint8_t i = 0; i < 8; i++) {
+          baseSlotBytes[31 - i] = static_cast<uint8_t>((mapping_base_slot >> (i * 8)) & 0xFF);
+      }
+      
+      // Concatenate the two 32-byte arrays into a 64-byte vector.
+      std::vector<uint8_t> buf(64, 0);
+      std::copy(reqIdBytes.begin(), reqIdBytes.end(), buf.begin());
+      std::copy(baseSlotBytes.begin(), baseSlotBytes.end(), buf.begin() + 32);
+      
+      // Compute Keccak-256 on the 64-byte buffer.
+      // (This assumes you have a keccak_256 function that accepts a std::vector<uint8_t>
+      // and returns a std::array<uint8_t,32>.)
+      std::array<uint8_t, 32> hash = keccak_256(buf);
+      
+    // Construct the raw base key.
+    eosio::checksum256 base = eosio::checksum256(hash);
+    
+    // Add a fixed offset so that the computed key points to the actual stored data.
+    return base;
+  }
+
+  // Converts a uint256_t to a 32-byte array
+  inline std::array<uint8_t, 32> uint256ToBytes(const uint256_t& value) {
+      std::array<uint8_t, 32> out = {0};
+      // This writes the full 32 bytes in big‑endian order.
+      intx::be::unsafe::store(out.data(), value);
+      return out;
+  }
+
 } // namespace bridge_evm

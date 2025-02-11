@@ -26,34 +26,34 @@ import type {
 export interface TokenBridgeInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "MAX_RETRY_ATTEMPTS"
       | "REQUEST_TIMEOUT"
+      | "activeRequestIds"
       | "antelope_bridge_evm_address"
       | "antelope_symbol"
       | "antelope_token_contract"
       | "antelope_token_name"
       | "bridge"
       | "bridgeTo"
+      | "bytes32ToString"
+      | "clearFailedRequests"
       | "evm_approvedToken"
       | "evm_decimals"
       | "fee"
       | "max_requests_per_requestor"
       | "min_amount"
       | "owner"
-      | "refundAttempts"
-      | "refundSuccessful"
-      | "refunds"
+      | "refundRequest"
+      | "refundStuckReq"
       | "removeRequest"
       | "renounceOwnership"
-      | "requestAttempts"
       | "requestSuccessful"
       | "request_counts"
+      | "request_id"
       | "requests"
-      | "retryFailedRefunds"
-      | "retryFailedRequests"
       | "setAntelopeBridgeEvmAddress"
       | "setFee"
       | "setMaxRequestsPerRequestor"
+      | "setMinAmount"
       | "setTokenInfo"
       | "transferOwnership"
   ): FunctionFragment;
@@ -62,21 +62,20 @@ export interface TokenBridgeInterface extends Interface {
     nameOrSignatureOrTopic:
       | "BridgeRequest"
       | "BridgeTransaction"
+      | "FailedRequestCleared"
       | "OwnershipTransferred"
-      | "RefundRetryStatus"
-      | "RefundStatus"
-      | "RequestRetryStatus"
+      | "RequestRemovalSuccess"
       | "RequestStatusCallback"
       | "ValidationStatus"
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: "MAX_RETRY_ATTEMPTS",
+    functionFragment: "REQUEST_TIMEOUT",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "REQUEST_TIMEOUT",
-    values?: undefined
+    functionFragment: "activeRequestIds",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "antelope_bridge_evm_address",
@@ -103,6 +102,14 @@ export interface TokenBridgeInterface extends Interface {
     values: [AddressLike, AddressLike, BigNumberish, BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "bytes32ToString",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "clearFailedRequests",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "evm_approvedToken",
     values?: undefined
   ): string;
@@ -121,16 +128,12 @@ export interface TokenBridgeInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "refundAttempts",
+    functionFragment: "refundRequest",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "refundSuccessful",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "refunds",
-    values: [BigNumberish]
+    functionFragment: "refundStuckReq",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "removeRequest",
@@ -141,10 +144,6 @@ export interface TokenBridgeInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "requestAttempts",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
     functionFragment: "requestSuccessful",
     values: [BigNumberish]
   ): string;
@@ -153,16 +152,12 @@ export interface TokenBridgeInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "request_id",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "requests",
     values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "retryFailedRefunds",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: "retryFailedRequests",
-    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "setAntelopeBridgeEvmAddress",
@@ -177,6 +172,10 @@ export interface TokenBridgeInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "setMinAmount",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "setTokenInfo",
     values: [AddressLike, string, string, string]
   ): string;
@@ -186,11 +185,11 @@ export interface TokenBridgeInterface extends Interface {
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "MAX_RETRY_ATTEMPTS",
+    functionFragment: "REQUEST_TIMEOUT",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "REQUEST_TIMEOUT",
+    functionFragment: "activeRequestIds",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -212,6 +211,14 @@ export interface TokenBridgeInterface extends Interface {
   decodeFunctionResult(functionFragment: "bridge", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "bridgeTo", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "bytes32ToString",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "clearFailedRequests",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "evm_approvedToken",
     data: BytesLike
   ): Result;
@@ -227,24 +234,19 @@ export interface TokenBridgeInterface extends Interface {
   decodeFunctionResult(functionFragment: "min_amount", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "refundAttempts",
+    functionFragment: "refundRequest",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "refundSuccessful",
+    functionFragment: "refundStuckReq",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "refunds", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "removeRequest",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "requestAttempts",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -255,15 +257,8 @@ export interface TokenBridgeInterface extends Interface {
     functionFragment: "request_counts",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "request_id", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "requests", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "retryFailedRefunds",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "retryFailedRequests",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(
     functionFragment: "setAntelopeBridgeEvmAddress",
     data: BytesLike
@@ -271,6 +266,10 @@ export interface TokenBridgeInterface extends Interface {
   decodeFunctionResult(functionFragment: "setFee", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "setMaxRequestsPerRequestor",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setMinAmount",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -288,14 +287,14 @@ export namespace BridgeRequestEvent {
     id: BigNumberish,
     sender: AddressLike,
     token: AddressLike,
-    antelope_token_contract: BytesLike,
-    antelope_symbol: BytesLike,
+    antelope_token_contract: string,
+    antelope_symbol: string,
     amount: BigNumberish,
-    receiver: BytesLike,
+    receiver: string,
     timestamp: BigNumberish,
-    memo: BytesLike,
-    status: BytesLike,
-    reason: BytesLike
+    memo: string,
+    status: BigNumberish,
+    reason: string
   ];
   export type OutputTuple = [
     id: bigint,
@@ -307,7 +306,7 @@ export namespace BridgeRequestEvent {
     receiver: string,
     timestamp: bigint,
     memo: string,
-    status: string,
+    status: bigint,
     reason: string
   ];
   export interface OutputObject {
@@ -320,7 +319,7 @@ export namespace BridgeRequestEvent {
     receiver: string;
     timestamp: bigint;
     memo: string;
-    status: string;
+    status: bigint;
     reason: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
@@ -331,21 +330,23 @@ export namespace BridgeRequestEvent {
 
 export namespace BridgeTransactionEvent {
   export type InputTuple = [
+    id: BigNumberish,
     receiver: AddressLike,
     token: AddressLike,
     amount: BigNumberish,
-    status: BytesLike,
+    status: BigNumberish,
     timestamp: BigNumberish,
-    sender: BytesLike,
-    from_token_contract: BytesLike,
-    from_token_symbol: BytesLike,
-    reason: BytesLike
+    sender: string,
+    from_token_contract: string,
+    from_token_symbol: string,
+    reason: string
   ];
   export type OutputTuple = [
+    id: bigint,
     receiver: string,
     token: string,
     amount: bigint,
-    status: string,
+    status: bigint,
     timestamp: bigint,
     sender: string,
     from_token_contract: string,
@@ -353,15 +354,34 @@ export namespace BridgeTransactionEvent {
     reason: string
   ];
   export interface OutputObject {
+    id: bigint;
     receiver: string;
     token: string;
     amount: bigint;
-    status: string;
+    status: bigint;
     timestamp: bigint;
     sender: string;
     from_token_contract: string;
     from_token_symbol: string;
     reason: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace FailedRequestClearedEvent {
+  export type InputTuple = [
+    id: BigNumberish,
+    sender: AddressLike,
+    timestamp: BigNumberish
+  ];
+  export type OutputTuple = [id: bigint, sender: string, timestamp: bigint];
+  export interface OutputObject {
+    id: bigint;
+    sender: string;
+    timestamp: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -382,125 +402,24 @@ export namespace OwnershipTransferredEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace RefundRetryStatusEvent {
+export namespace RequestRemovalSuccessEvent {
   export type InputTuple = [
     id: BigNumberish,
     sender: AddressLike,
-    antelope_token_contract: BytesLike,
-    antelope_symbol: BytesLike,
-    amount: BigNumberish,
-    receiver: BytesLike,
-    attemptCount: BigNumberish,
-    status: BigNumberish,
     timestamp: BigNumberish,
-    reason: BytesLike
+    message: string
   ];
   export type OutputTuple = [
     id: bigint,
     sender: string,
-    antelope_token_contract: string,
-    antelope_symbol: string,
-    amount: bigint,
-    receiver: string,
-    attemptCount: bigint,
-    status: bigint,
     timestamp: bigint,
-    reason: string
+    message: string
   ];
   export interface OutputObject {
     id: bigint;
     sender: string;
-    antelope_token_contract: string;
-    antelope_symbol: string;
-    amount: bigint;
-    receiver: string;
-    attemptCount: bigint;
-    status: bigint;
     timestamp: bigint;
-    reason: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace RefundStatusEvent {
-  export type InputTuple = [
-    id: BigNumberish,
-    sender: AddressLike,
-    antelope_token_contract: BytesLike,
-    antelope_symbol: BytesLike,
-    amount: BigNumberish,
-    receiver: BytesLike,
-    status: BigNumberish,
-    timestamp: BigNumberish,
-    reason: BytesLike
-  ];
-  export type OutputTuple = [
-    id: bigint,
-    sender: string,
-    antelope_token_contract: string,
-    antelope_symbol: string,
-    amount: bigint,
-    receiver: string,
-    status: bigint,
-    timestamp: bigint,
-    reason: string
-  ];
-  export interface OutputObject {
-    id: bigint;
-    sender: string;
-    antelope_token_contract: string;
-    antelope_symbol: string;
-    amount: bigint;
-    receiver: string;
-    status: bigint;
-    timestamp: bigint;
-    reason: string;
-  }
-  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
-  export type Filter = TypedDeferredTopicFilter<Event>;
-  export type Log = TypedEventLog<Event>;
-  export type LogDescription = TypedLogDescription<Event>;
-}
-
-export namespace RequestRetryStatusEvent {
-  export type InputTuple = [
-    id: BigNumberish,
-    sender: AddressLike,
-    antelope_token_contract: BytesLike,
-    antelope_symbol: BytesLike,
-    amount: BigNumberish,
-    receiver: BytesLike,
-    attemptCount: BigNumberish,
-    status: BigNumberish,
-    timestamp: BigNumberish,
-    reason: BytesLike
-  ];
-  export type OutputTuple = [
-    id: bigint,
-    sender: string,
-    antelope_token_contract: string,
-    antelope_symbol: string,
-    amount: bigint,
-    receiver: string,
-    attemptCount: bigint,
-    status: bigint,
-    timestamp: bigint,
-    reason: string
-  ];
-  export interface OutputObject {
-    id: bigint;
-    sender: string;
-    antelope_token_contract: string;
-    antelope_symbol: string;
-    amount: bigint;
-    receiver: string;
-    attemptCount: bigint;
-    status: bigint;
-    timestamp: bigint;
-    reason: string;
+    message: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -512,13 +431,13 @@ export namespace RequestStatusCallbackEvent {
   export type InputTuple = [
     id: BigNumberish,
     sender: AddressLike,
-    antelope_token_contract: BytesLike,
-    antelope_symbol: BytesLike,
+    antelope_token_contract: string,
+    antelope_symbol: string,
     amount: BigNumberish,
-    receiver: BytesLike,
+    receiver: string,
     status: BigNumberish,
     timestamp: BigNumberish,
-    reason: BytesLike
+    reason: string
   ];
   export type OutputTuple = [
     id: bigint,
@@ -550,13 +469,13 @@ export namespace RequestStatusCallbackEvent {
 
 export namespace ValidationStatusEvent {
   export type InputTuple = [
-    message: BytesLike,
+    message: string,
     token: AddressLike,
     receiver: AddressLike,
     amount: BigNumberish,
-    sender: BytesLike,
-    from_token_contract: BytesLike,
-    from_token_symbol: BytesLike,
+    sender: string,
+    from_token_contract: string,
+    from_token_symbol: string,
     timestamp: BigNumberish
   ];
   export type OutputTuple = [
@@ -628,9 +547,9 @@ export interface TokenBridge extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  MAX_RETRY_ATTEMPTS: TypedContractMethod<[], [bigint], "view">;
-
   REQUEST_TIMEOUT: TypedContractMethod<[], [bigint], "view">;
+
+  activeRequestIds: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
 
   antelope_bridge_evm_address: TypedContractMethod<[], [string], "view">;
 
@@ -657,6 +576,10 @@ export interface TokenBridge extends BaseContract {
     "nonpayable"
   >;
 
+  bytes32ToString: TypedContractMethod<[_bytes32: BytesLike], [string], "view">;
+
+  clearFailedRequests: TypedContractMethod<[], [void], "nonpayable">;
+
   evm_approvedToken: TypedContractMethod<[], [string], "view">;
 
   evm_decimals: TypedContractMethod<[], [bigint], "view">;
@@ -669,41 +592,9 @@ export interface TokenBridge extends BaseContract {
 
   owner: TypedContractMethod<[], [string], "view">;
 
-  refundAttempts: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
+  refundRequest: TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
 
-  refundSuccessful: TypedContractMethod<
-    [id: BigNumberish],
-    [void],
-    "nonpayable"
-  >;
-
-  refunds: TypedContractMethod<
-    [arg0: BigNumberish],
-    [
-      [
-        bigint,
-        bigint,
-        string,
-        string,
-        string,
-        string,
-        bigint,
-        bigint,
-        bigint
-      ] & {
-        id: bigint;
-        amount: bigint;
-        antelope_token_contract: string;
-        antelope_symbol: string;
-        receiver: string;
-        sender: string;
-        evm_decimals: bigint;
-        status: bigint;
-        lastAttempt: bigint;
-      }
-    ],
-    "view"
-  >;
+  refundStuckReq: TypedContractMethod<[], [void], "nonpayable">;
 
   removeRequest: TypedContractMethod<
     [id: BigNumberish],
@@ -713,8 +604,6 @@ export interface TokenBridge extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
-  requestAttempts: TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
-
   requestSuccessful: TypedContractMethod<
     [id: BigNumberish],
     [void],
@@ -722,6 +611,8 @@ export interface TokenBridge extends BaseContract {
   >;
 
   request_counts: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  request_id: TypedContractMethod<[], [bigint], "view">;
 
   requests: TypedContractMethod<
     [arg0: BigNumberish],
@@ -736,7 +627,6 @@ export interface TokenBridge extends BaseContract {
         string,
         bigint,
         bigint,
-        bigint,
         string
       ] & {
         id: bigint;
@@ -748,16 +638,11 @@ export interface TokenBridge extends BaseContract {
         receiver: string;
         evm_decimals: bigint;
         status: bigint;
-        lastAttempt: bigint;
         memo: string;
       }
     ],
     "view"
   >;
-
-  retryFailedRefunds: TypedContractMethod<[], [void], "nonpayable">;
-
-  retryFailedRequests: TypedContractMethod<[], [void], "nonpayable">;
 
   setAntelopeBridgeEvmAddress: TypedContractMethod<
     [_antelope_bridge_evm_address: AddressLike],
@@ -769,6 +654,12 @@ export interface TokenBridge extends BaseContract {
 
   setMaxRequestsPerRequestor: TypedContractMethod<
     [_max_requests_per_requestor: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  setMinAmount: TypedContractMethod<
+    [_min_amount: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -795,11 +686,11 @@ export interface TokenBridge extends BaseContract {
   ): T;
 
   getFunction(
-    nameOrSignature: "MAX_RETRY_ATTEMPTS"
-  ): TypedContractMethod<[], [bigint], "view">;
-  getFunction(
     nameOrSignature: "REQUEST_TIMEOUT"
   ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "activeRequestIds"
+  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
   getFunction(
     nameOrSignature: "antelope_bridge_evm_address"
   ): TypedContractMethod<[], [string], "view">;
@@ -832,6 +723,12 @@ export interface TokenBridge extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "bytes32ToString"
+  ): TypedContractMethod<[_bytes32: BytesLike], [string], "view">;
+  getFunction(
+    nameOrSignature: "clearFailedRequests"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "evm_approvedToken"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -850,40 +747,11 @@ export interface TokenBridge extends BaseContract {
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "refundAttempts"
-  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
-  getFunction(
-    nameOrSignature: "refundSuccessful"
+    nameOrSignature: "refundRequest"
   ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "refunds"
-  ): TypedContractMethod<
-    [arg0: BigNumberish],
-    [
-      [
-        bigint,
-        bigint,
-        string,
-        string,
-        string,
-        string,
-        bigint,
-        bigint,
-        bigint
-      ] & {
-        id: bigint;
-        amount: bigint;
-        antelope_token_contract: string;
-        antelope_symbol: string;
-        receiver: string;
-        sender: string;
-        evm_decimals: bigint;
-        status: bigint;
-        lastAttempt: bigint;
-      }
-    ],
-    "view"
-  >;
+    nameOrSignature: "refundStuckReq"
+  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "removeRequest"
   ): TypedContractMethod<[id: BigNumberish], [boolean], "nonpayable">;
@@ -891,14 +759,14 @@ export interface TokenBridge extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "requestAttempts"
-  ): TypedContractMethod<[arg0: BigNumberish], [bigint], "view">;
-  getFunction(
     nameOrSignature: "requestSuccessful"
   ): TypedContractMethod<[id: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "request_counts"
   ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "request_id"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "requests"
   ): TypedContractMethod<
@@ -914,7 +782,6 @@ export interface TokenBridge extends BaseContract {
         string,
         bigint,
         bigint,
-        bigint,
         string
       ] & {
         id: bigint;
@@ -926,18 +793,11 @@ export interface TokenBridge extends BaseContract {
         receiver: string;
         evm_decimals: bigint;
         status: bigint;
-        lastAttempt: bigint;
         memo: string;
       }
     ],
     "view"
   >;
-  getFunction(
-    nameOrSignature: "retryFailedRefunds"
-  ): TypedContractMethod<[], [void], "nonpayable">;
-  getFunction(
-    nameOrSignature: "retryFailedRequests"
-  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setAntelopeBridgeEvmAddress"
   ): TypedContractMethod<
@@ -955,6 +815,9 @@ export interface TokenBridge extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "setMinAmount"
+  ): TypedContractMethod<[_min_amount: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setTokenInfo"
   ): TypedContractMethod<
@@ -986,6 +849,13 @@ export interface TokenBridge extends BaseContract {
     BridgeTransactionEvent.OutputObject
   >;
   getEvent(
+    key: "FailedRequestCleared"
+  ): TypedContractEvent<
+    FailedRequestClearedEvent.InputTuple,
+    FailedRequestClearedEvent.OutputTuple,
+    FailedRequestClearedEvent.OutputObject
+  >;
+  getEvent(
     key: "OwnershipTransferred"
   ): TypedContractEvent<
     OwnershipTransferredEvent.InputTuple,
@@ -993,25 +863,11 @@ export interface TokenBridge extends BaseContract {
     OwnershipTransferredEvent.OutputObject
   >;
   getEvent(
-    key: "RefundRetryStatus"
+    key: "RequestRemovalSuccess"
   ): TypedContractEvent<
-    RefundRetryStatusEvent.InputTuple,
-    RefundRetryStatusEvent.OutputTuple,
-    RefundRetryStatusEvent.OutputObject
-  >;
-  getEvent(
-    key: "RefundStatus"
-  ): TypedContractEvent<
-    RefundStatusEvent.InputTuple,
-    RefundStatusEvent.OutputTuple,
-    RefundStatusEvent.OutputObject
-  >;
-  getEvent(
-    key: "RequestRetryStatus"
-  ): TypedContractEvent<
-    RequestRetryStatusEvent.InputTuple,
-    RequestRetryStatusEvent.OutputTuple,
-    RequestRetryStatusEvent.OutputObject
+    RequestRemovalSuccessEvent.InputTuple,
+    RequestRemovalSuccessEvent.OutputTuple,
+    RequestRemovalSuccessEvent.OutputObject
   >;
   getEvent(
     key: "RequestStatusCallback"
@@ -1029,7 +885,7 @@ export interface TokenBridge extends BaseContract {
   >;
 
   filters: {
-    "BridgeRequest(uint256,address,address,bytes32,bytes32,uint256,bytes32,uint256,bytes32,bytes32,bytes32)": TypedContractEvent<
+    "BridgeRequest(uint256,address,address,string,string,uint256,string,uint256,string,uint8,string)": TypedContractEvent<
       BridgeRequestEvent.InputTuple,
       BridgeRequestEvent.OutputTuple,
       BridgeRequestEvent.OutputObject
@@ -1040,7 +896,7 @@ export interface TokenBridge extends BaseContract {
       BridgeRequestEvent.OutputObject
     >;
 
-    "BridgeTransaction(address,address,uint256,bytes32,uint256,bytes32,bytes32,bytes32,bytes32)": TypedContractEvent<
+    "BridgeTransaction(uint256,address,address,uint256,uint8,uint256,string,string,string,string)": TypedContractEvent<
       BridgeTransactionEvent.InputTuple,
       BridgeTransactionEvent.OutputTuple,
       BridgeTransactionEvent.OutputObject
@@ -1049,6 +905,17 @@ export interface TokenBridge extends BaseContract {
       BridgeTransactionEvent.InputTuple,
       BridgeTransactionEvent.OutputTuple,
       BridgeTransactionEvent.OutputObject
+    >;
+
+    "FailedRequestCleared(uint256,address,uint256)": TypedContractEvent<
+      FailedRequestClearedEvent.InputTuple,
+      FailedRequestClearedEvent.OutputTuple,
+      FailedRequestClearedEvent.OutputObject
+    >;
+    FailedRequestCleared: TypedContractEvent<
+      FailedRequestClearedEvent.InputTuple,
+      FailedRequestClearedEvent.OutputTuple,
+      FailedRequestClearedEvent.OutputObject
     >;
 
     "OwnershipTransferred(address,address)": TypedContractEvent<
@@ -1062,40 +929,18 @@ export interface TokenBridge extends BaseContract {
       OwnershipTransferredEvent.OutputObject
     >;
 
-    "RefundRetryStatus(uint256,address,bytes32,bytes32,uint256,bytes32,uint256,uint8,uint256,bytes32)": TypedContractEvent<
-      RefundRetryStatusEvent.InputTuple,
-      RefundRetryStatusEvent.OutputTuple,
-      RefundRetryStatusEvent.OutputObject
+    "RequestRemovalSuccess(uint256,address,uint256,string)": TypedContractEvent<
+      RequestRemovalSuccessEvent.InputTuple,
+      RequestRemovalSuccessEvent.OutputTuple,
+      RequestRemovalSuccessEvent.OutputObject
     >;
-    RefundRetryStatus: TypedContractEvent<
-      RefundRetryStatusEvent.InputTuple,
-      RefundRetryStatusEvent.OutputTuple,
-      RefundRetryStatusEvent.OutputObject
-    >;
-
-    "RefundStatus(uint256,address,bytes32,bytes32,uint256,bytes32,uint8,uint256,bytes32)": TypedContractEvent<
-      RefundStatusEvent.InputTuple,
-      RefundStatusEvent.OutputTuple,
-      RefundStatusEvent.OutputObject
-    >;
-    RefundStatus: TypedContractEvent<
-      RefundStatusEvent.InputTuple,
-      RefundStatusEvent.OutputTuple,
-      RefundStatusEvent.OutputObject
+    RequestRemovalSuccess: TypedContractEvent<
+      RequestRemovalSuccessEvent.InputTuple,
+      RequestRemovalSuccessEvent.OutputTuple,
+      RequestRemovalSuccessEvent.OutputObject
     >;
 
-    "RequestRetryStatus(uint256,address,bytes32,bytes32,uint256,bytes32,uint256,uint8,uint256,bytes32)": TypedContractEvent<
-      RequestRetryStatusEvent.InputTuple,
-      RequestRetryStatusEvent.OutputTuple,
-      RequestRetryStatusEvent.OutputObject
-    >;
-    RequestRetryStatus: TypedContractEvent<
-      RequestRetryStatusEvent.InputTuple,
-      RequestRetryStatusEvent.OutputTuple,
-      RequestRetryStatusEvent.OutputObject
-    >;
-
-    "RequestStatusCallback(uint256,address,bytes32,bytes32,uint256,bytes32,uint8,uint256,bytes32)": TypedContractEvent<
+    "RequestStatusCallback(uint256,address,string,string,uint256,string,uint8,uint256,string)": TypedContractEvent<
       RequestStatusCallbackEvent.InputTuple,
       RequestStatusCallbackEvent.OutputTuple,
       RequestStatusCallbackEvent.OutputObject
@@ -1106,7 +951,7 @@ export interface TokenBridge extends BaseContract {
       RequestStatusCallbackEvent.OutputObject
     >;
 
-    "ValidationStatus(bytes32,address,address,uint256,bytes32,bytes32,bytes32,uint256)": TypedContractEvent<
+    "ValidationStatus(string,address,address,uint256,string,string,string,uint256)": TypedContractEvent<
       ValidationStatusEvent.InputTuple,
       ValidationStatusEvent.OutputTuple,
       ValidationStatusEvent.OutputObject

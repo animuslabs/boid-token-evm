@@ -48,13 +48,14 @@ public:
         // - evm_memo: The memo to use when forwarding the bridged tokens ( this should be the Ethereum address )
         //--------------------------------------------------------------------------
         [[eosio::action]]
-        void setglobal(asset fee, name fee_token_contract, symbol fee_token_symbol, name bridge_account, std::string evm_memo) {
+        void setglobal(asset fee, name fee_token_contract, symbol fee_token_symbol, name bridge_account, std::string evm_memo, name fee_receiver) {
             require_auth(get_self());
 
             // Basic checks
             check(is_account(fee_token_contract), "Fee token contract does not exist");
             check(fee_token_symbol == fee.symbol, "Fee token symbol does not match the fee name");
             check(is_account(bridge_account), "Bridge account does not exist");
+            check(is_account(fee_receiver), "Fee receiver account does not exist");
             check(evm_memo.substr(0, 2) == "0x" && evm_memo.length() == 42, "Memo must be a valid Ethereum address (42 characters including '0x').");
             check(std::all_of(evm_memo.begin() + 2, evm_memo.end(), ::isxdigit), "Memo must contain a valid EVM address in hexadecimal format.");
             check(fee.amount > 0, "Fee must be greater than zero");
@@ -69,6 +70,7 @@ public:
                     row.fee_token_symbol    = fee_token_symbol;
                     row.bridge_account    = bridge_account;
                     row.evm_memo          = evm_memo;
+                    row.fee_receiver      = fee_receiver;
                 });
             } else {
                 // Modify existing config
@@ -78,6 +80,7 @@ public:
                     row.fee_token_symbol    = fee_token_symbol;
                     row.bridge_account    = bridge_account;
                     row.evm_memo          = evm_memo;
+                    row.fee_receiver      = fee_receiver;
                 });
             }
         }
@@ -87,7 +90,7 @@ public:
         //
         // Register (or update) a bridging token config:
         // - token_contract: The contract which issues/handles this bridged token
-        // - token_symbol: The token’s symbol
+        // - token_symbol: The token's symbol
         // - min_amount: The minimum bridging amount
         //--------------------------------------------------------------------------
         [[eosio::action]]
@@ -138,7 +141,7 @@ public:
         //--------------------------------------------------------------------------
         // ACTION: claimrefund
         //
-        // The user can claim any unused fee record if they haven’t used it yet,
+        // The user can claim any unused fee record if they haven't used it yet,
         // provided it hasn't expired.  
         //--------------------------------------------------------------------------
         [[eosio::action]]
@@ -161,7 +164,7 @@ public:
                 permission_level{get_self(), "active"_n},
                 refund_token_contract,
                 "transfer"_n,
-                std::make_tuple(get_self(), user, refund_amount, std::string("Refund from feeForwarder"))
+                std::make_tuple(get_self(), user, refund_amount, std::string("Refund"))
             ).send();
 
             // Erase record
@@ -191,56 +194,6 @@ public:
             }
         }
 
-
-        //--------------------------------------------------------------------------
-        // ACTION: withdrawfees
-        //
-        // Admin can withdraw any unencumbered fees (i.e., fees that haven't been used yet).
-        // It also cleans up any expired fee records.
-        //--------------------------------------------------------------------------
-        [[eosio::action]]
-        void withdrawfees() {
-            // 1. Check global config
-            auto glob_itr = _global.find(GLOBAL_ID);
-            check(glob_itr != _global.end(), "Global config is not set. Please call setglobal first.");
-
-            name   fee_contract  = glob_itr->fee_token_contract;
-            symbol fee_symbol    = glob_itr->fee_token_symbol; 
-            name   to_account    = glob_itr->bridge_account;
-            std::string memo_str = glob_itr->evm_memo;
-
-            // 2. Read this contract's balance of the fee token
-            asset contract_balance = token::get_balance(fee_contract, get_self(), fee_symbol.code());
-            // e.g. "1000.0000 TLOS"
-
-            // 3. Sum up all unexpired fee records (that match the fee symbol).
-            //    Because if a user hasn't used it yet, they can still claim a refund.
-            asset total_encumbered(0, fee_symbol); // start at 0
-            time_point_sec now = current_time_point();
-
-            auto itr = _fees.begin();
-            while (itr != _fees.end()) {
-                if (now > itr->created_at + seconds(2592000)) {
-                    itr = _fees.erase(itr);
-                } else {
-                    total_encumbered += itr->amount;
-                    ++itr;
-                }
-            }
-
-            // 4. Calculate how much is actually free to withdraw
-            asset free_amount = contract_balance - total_encumbered;
-            check(free_amount.amount > 0, "No unencumbered funds available to withdraw.");
-
-            // 5. Transfer the free_amount out
-            action(
-                permission_level{get_self(), "active"_n},
-                fee_contract,
-                "transfer"_n,
-                std::make_tuple(get_self(), to_account, free_amount, memo_str)
-            ).send();
-        }
-
 private:
     //--------------------------------------------------------------------------
     // TABLE: global configuration
@@ -256,6 +209,7 @@ private:
         symbol   fee_token_symbol;     // Symbol of the fee token
         name     bridge_account;     // Final account to which bridged tokens go
         std::string evm_memo;            // Memo to use when forwarding bridged tokens
+        name     fee_receiver;      // The account to receive fee tokens (e.g., eosio.evm)
 
         uint64_t primary_key() const { return id; }
     };
@@ -342,6 +296,28 @@ private:
 
         // 5. Remove the fee record (it was used)
         fee_idx.erase(fee_itr);
+
+        // 6. Cleanup expired fee records and auto-forward any released tokens.
+        asset contract_balance = token::get_balance(glob_itr->fee_token_contract, get_self(), glob_itr->fee_token_symbol.code());
+        asset total_encumbered(0, glob_itr->fee_token_symbol);
+        time_point_sec now = current_time_point();
+        for (auto itr = _fees.begin(); itr != _fees.end(); ) {
+            if (now > itr->created_at + seconds(2592000)) {
+                itr = _fees.erase(itr);
+            } else {
+                total_encumbered += itr->amount;
+                ++itr;
+            }
+        }
+        asset free_amount = contract_balance - total_encumbered;
+        if (free_amount.amount > 0) {
+            action(
+                permission_level{get_self(), "active"_n},
+                glob_itr->fee_token_contract,
+                "transfer"_n,
+                std::make_tuple(get_self(), glob_itr->fee_receiver, free_amount, glob_itr->evm_memo)
+            ).send();
+        }
     }
 
     //--------------------------------------------------------------------------

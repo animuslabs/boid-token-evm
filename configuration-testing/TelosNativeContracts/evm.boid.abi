@@ -125,16 +125,6 @@
             ]
         },
         {
-            "name": "rmreq",
-            "base": "",
-            "fields": [
-                {
-                    "name": "req_id",
-                    "type": "uint64"
-                }
-            ]
-        },
-        {
             "name": "verifytrx",
             "base": "",
             "fields": [
@@ -159,11 +149,6 @@
         {
             "name": "reqnotify",
             "type": "reqnotify",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "rmreq",
-            "type": "rmreq",
             "ricardian_contract": ""
         },
         {

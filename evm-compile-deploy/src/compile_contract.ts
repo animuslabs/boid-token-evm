@@ -41,6 +41,7 @@ export async function compileContract(
       },
     },
     settings: {
+      viaIR: true,
       optimizer: {
         enabled: true,
         runs: 200,

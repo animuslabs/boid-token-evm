@@ -3,7 +3,7 @@ import {ABI, Asset, Blob, Name, Struct, TimePointSec, UInt64} from '@wharfkit/an
 import type {ActionOptions, ContractArgs, PartialBy, Table} from '@wharfkit/contract'
 import {Contract as BaseContract} from '@wharfkit/contract'
 export const abiBlob = Blob.from(
-    'DmVvc2lvOjphYmkvMS4yAAgLY2xhaW1yZWZ1bmQAAQR1c2VyBG5hbWUIZGVsdG9rZW4AAQx0b2tlbl9zeW1ib2wGc3ltYm9sCmZlZV9yZWNvcmQABQJpZAZ1aW50NjQEdXNlcgRuYW1lBmFtb3VudAVhc3NldA50b2tlbl9jb250cmFjdARuYW1lCmNyZWF0ZWRfYXQOdGltZV9wb2ludF9zZWMMZ2xvYmFsX3N0YXRlAAYCaWQGdWludDY0A2ZlZQVhc3NldBJmZWVfdG9rZW5fY29udHJhY3QEbmFtZRBmZWVfdG9rZW5fc3ltYm9sBnN5bWJvbA5icmlkZ2VfYWNjb3VudARuYW1lCGV2bV9tZW1vBnN0cmluZwhyZWd0b2tlbgADDnRva2VuX2NvbnRyYWN0BG5hbWUMdG9rZW5fc3ltYm9sBnN5bWJvbAptaW5fYW1vdW50BWFzc2V0CXNldGdsb2JhbAAFA2ZlZQVhc3NldBJmZWVfdG9rZW5fY29udHJhY3QEbmFtZRBmZWVfdG9rZW5fc3ltYm9sBnN5bWJvbA5icmlkZ2VfYWNjb3VudARuYW1lCGV2bV9tZW1vBnN0cmluZwx0b2tlbl9jb25maWcAAwx0b2tlbl9zeW1ib2wGc3ltYm9sDnRva2VuX2NvbnRyYWN0BG5hbWUKbWluX2Ftb3VudAVhc3NldAx3aXRoZHJhd2ZlZXMAAAUA0tRLXelMRAtjbGFpbXJlZnVuZAAAAABTQZqjSghkZWx0b2tlbgAAAABTQZqZughyZWd0b2tlbgAAAIjm0MiywglzZXRnbG9iYWwAgJVa3NzUsuMMd2l0aGRyYXdmZWVzAAMAAAAAAICVWgNpNjQAAApmZWVfcmVjb3JkAAAAAERzaGQDaTY0AAAMZ2xvYmFsX3N0YXRlAAAAAOCpIM0DaTY0AAAMdG9rZW5fY29uZmlnAAAAAAA='
+    'DmVvc2lvOjphYmkvMS4yAAcLY2xhaW1yZWZ1bmQAAQR1c2VyBG5hbWUIZGVsdG9rZW4AAQx0b2tlbl9zeW1ib2wGc3ltYm9sCmZlZV9yZWNvcmQABQJpZAZ1aW50NjQEdXNlcgRuYW1lBmFtb3VudAVhc3NldA50b2tlbl9jb250cmFjdARuYW1lCmNyZWF0ZWRfYXQOdGltZV9wb2ludF9zZWMMZ2xvYmFsX3N0YXRlAAcCaWQGdWludDY0A2ZlZQVhc3NldBJmZWVfdG9rZW5fY29udHJhY3QEbmFtZRBmZWVfdG9rZW5fc3ltYm9sBnN5bWJvbA5icmlkZ2VfYWNjb3VudARuYW1lCGV2bV9tZW1vBnN0cmluZwxmZWVfcmVjZWl2ZXIEbmFtZQhyZWd0b2tlbgADDnRva2VuX2NvbnRyYWN0BG5hbWUMdG9rZW5fc3ltYm9sBnN5bWJvbAptaW5fYW1vdW50BWFzc2V0CXNldGdsb2JhbAAGA2ZlZQVhc3NldBJmZWVfdG9rZW5fY29udHJhY3QEbmFtZRBmZWVfdG9rZW5fc3ltYm9sBnN5bWJvbA5icmlkZ2VfYWNjb3VudARuYW1lCGV2bV9tZW1vBnN0cmluZwxmZWVfcmVjZWl2ZXIEbmFtZQx0b2tlbl9jb25maWcAAwx0b2tlbl9zeW1ib2wGc3ltYm9sDnRva2VuX2NvbnRyYWN0BG5hbWUKbWluX2Ftb3VudAVhc3NldAQA0tRLXelMRAtjbGFpbXJlZnVuZAAAAABTQZqjSghkZWx0b2tlbgAAAABTQZqZughyZWd0b2tlbgAAAIjm0MiywglzZXRnbG9iYWwAAwAAAAAAgJVaA2k2NAAACmZlZV9yZWNvcmQAAAAARHNoZANpNjQAAAxnbG9iYWxfc3RhdGUAAAAA4KkgzQNpNjQAAAx0b2tlbl9jb25maWcAAAAAAA=='
 )
 export const abi = ABI.from(abiBlob)
 export namespace Types {
@@ -44,6 +44,8 @@ export namespace Types {
         declare bridge_account: Name
         @Struct.field('string')
         declare evm_memo: string
+        @Struct.field(Name)
+        declare fee_receiver: Name
     }
     @Struct.type('regtoken')
     export class regtoken extends Struct {
@@ -66,6 +68,8 @@ export namespace Types {
         declare bridge_account: Name
         @Struct.field('string')
         declare evm_memo: string
+        @Struct.field(Name)
+        declare fee_receiver: Name
     }
     @Struct.type('token_config')
     export class token_config extends Struct {
@@ -76,8 +80,6 @@ export namespace Types {
         @Struct.field(Asset)
         declare min_amount: Asset
     }
-    @Struct.type('withdrawfees')
-    export class withdrawfees extends Struct {}
 }
 export const TableMap = {
     fees: Types.fee_record,
@@ -110,15 +112,14 @@ export namespace ActionParams {
         fee_token_symbol: Asset.SymbolType
         bridge_account: NameType
         evm_memo: string
+        fee_receiver: NameType
     }
-    export interface withdrawfees {}
 }
 export interface ActionNameParams {
     claimrefund: ActionParams.claimrefund
     deltoken: ActionParams.deltoken
     regtoken: ActionParams.regtoken
     setglobal: ActionParams.setglobal
-    withdrawfees: ActionParams.withdrawfees
 }
 export type ActionNames = keyof ActionNameParams
 export class Contract extends BaseContract {

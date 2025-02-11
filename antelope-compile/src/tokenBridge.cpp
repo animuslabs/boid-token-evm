@@ -10,11 +10,44 @@
 #include <cstring>
 #include <algorithm>
 #include <cctype>
+#include <intx/intx.hpp>
 #define REQUEST_TIMEOUT 3600
 
 namespace evm_bridge
 {
-    //======================== Admin actions ==========================
+   // define a type alias for its "bykey" iterator type:
+   using key_iterator_t = decltype(std::declval<account_state_table>().get_index<"bykey"_n>().begin());
+
+   struct KeyCheck {
+       const char* field_name;
+       key_iterator_t it;
+       eosio::checksum256 raw_key;
+
+       // explicit constructor
+       KeyCheck(const char* f, key_iterator_t i, const eosio::checksum256& r)
+           : field_name(f), it(i), raw_key(r) {}
+   };
+
+   template<typename IndexType>
+   void checkStorageKeys(const std::vector<evm_bridge::KeyCheck>& checks, const IndexType& index) {
+       std::vector<std::string> missing;
+       std::string error_msg = "Missing storage keys:";
+
+       for (const auto& check : checks) {
+           if (check.it == index.end()) {
+               missing.push_back(
+                   std::string("\n- ") + check.field_name + 
+                   " | Raw key: " + bin2hex(check.raw_key.extract_as_byte_array())
+               );
+           }
+       }
+
+       if (!missing.empty()) {
+           for (const auto& msg : missing) error_msg += msg;
+           check(false, error_msg.c_str());
+       }
+   }
+   //======================== Admin actions ==========================
     // Initialize the contract
     [[eosio::action]]
     void tokenbridge::init(
@@ -79,7 +112,7 @@ namespace evm_bridge
         auto evm_conf = *it;
 
         // Gas
-        uint256_t gas_price_val = evm_conf.gas_price * 1.2;
+        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
         
         // Validate token symbol and contract
         check(quantity.symbol == conf.native_token_symbol, "Token symbol does not match configured native token");
@@ -108,11 +141,11 @@ namespace evm_bridge
         account_state_table bridge_states(eosio::name(EVM_SYSTEM_CONTRACT), conf.evm_bridge_scope);
         auto bridge_state_bykey = bridge_states.get_index<"bykey"_n>();
 
-        uint256_t antelope_token_contract_slot = 5;
-        uint256_t antelope_token_symbol_slot   = 7;
+        uint256_t antelope_token_contract_slot = STORAGE_BRIDGE_TOKEN_CONTRACT_INDEX;
+        uint256_t antelope_token_symbol_slot   = STORAGE_BRIDGE_TOKEN_SYMBOL_INDEX;
 
         // -----------------------------------------------------------------
-        // ----- Decode antelope token contract (slot 5) -----
+        // ----- Decode antelope token contract (slot STORAGE_BRIDGE_TOKEN_CONTRACT_INDEX) -----
         // Create a temporary C-style array of 32 bytes.
         uint8_t token_contract_slot_c[32] = {0};
         intx::be::store(token_contract_slot_c, antelope_token_contract_slot);
@@ -171,7 +204,7 @@ namespace evm_bridge
             "', scope = " + std::to_string(conf.evm_bridge_scope)).c_str());
 
         // -----------------------------------------------------------------
-        // ----- Decode antelope token symbol (slot 7) -----
+        // ----- Decode antelope token symbol (slot STORAGE_BRIDGE_TOKEN_SYMBOL_INDEX) -----
         // Create a temporary C-style array of 32 bytes.
         uint8_t token_symbol_slot_c[32] = {0};
         intx::be::store(token_symbol_slot_c, antelope_token_symbol_slot);
@@ -266,18 +299,26 @@ namespace evm_bridge
         insertString(&data, sender, sender.length());
 
         // Call TokenBridge.bridgeTo(address token, address receiver, uint amount) on EVM using eosio.evm
+        uint64_t current_nonce = evm_account->nonce; // Get current nonce
         action(
             permission_level {get_self(), "active"_n},
             eosio::name(EVM_SYSTEM_CONTRACT),
             "raw"_n,
-            std::make_tuple(get_self(), rlp::encode(evm_account->nonce, gas_price_val, BRIDGE_GAS, evm_to, uint256_t(0), data, conf.evm_chain_id, 0, 0), false, std::optional<eosio::checksum160>(evm_account->address))
+            std::make_tuple(
+                get_self(),
+                rlp::encode(current_nonce, gas_price_val, BRIDGE_GAS, evm_to, uint256_t(0), data, conf.evm_chain_id, 0, 0),
+                false,
+                std::optional<eosio::checksum160>(evm_account->address)
+            )
         ).send();
     };
 
-    // Trustless bridge from tEVM
-    [[eosio::action]]
-    void tokenbridge::reqnotify()
-    {
+    // NEEDS TO BE TESTED!!!!!!!
+    // calls an action on the EVM to refund stuck requests
+    [[eosio::action]] void tokenbridge::refstuckreq() {
+        // Authenticate
+        require_auth(get_self());
+        
         // Open config
         auto conf = config_bridge.get();
 
@@ -288,7 +329,7 @@ namespace evm_bridge
         auto evm_conf = *it;
 
         // Gas price calculation
-        uint256_t gas_price_val = evm_conf.gas_price * 1.2;
+        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
 
         // Find the EVM account of this contract
         account_table _accounts(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
@@ -296,212 +337,282 @@ namespace evm_bridge
         auto evm_account = accounts_byaccount.require_find(get_self().value,
             ("EVM account not found for " + std::string(BRIDGE_CONTRACT_NAME)).c_str());
 
-        // Erase old requests
-        requests_table requests(get_self(), get_self().value);
-        auto requests_by_timestamp = requests.get_index<"timestamp"_n>();
-        auto upper = requests_by_timestamp.upper_bound(current_time_point().sec_since_epoch() - 60);
-        uint64_t count = 10; // max 10 requests to remove so we never overload CPU
-        for (auto itr = requests_by_timestamp.begin(); count > 0 && itr != upper; count--) {
-            itr = requests_by_timestamp.erase(itr);
-        }
-
-      // The "requests" array is declared at slot 8.
-      std::array<uint8_t, 32> paddedLength = {};
-      paddedLength[31] = STORAGE_BRIDGE_REQUEST_INDEX;  // STORAGE_BRIDGE_REQUEST_INDEX is 8.
-      checksum256 lengthKey;
-      std::memcpy((char*)&lengthKey, paddedLength.data(), 32);
-      std::string rawKeyHex = bin2hex(std::vector<uint8_t>(paddedLength.begin(), paddedLength.end()));
-
-      // Open the account state table.
-      account_state_table bridge_account_states(name(EVM_SYSTEM_CONTRACT), conf.evm_bridge_scope);
-      auto bridge_account_states_bykey = bridge_account_states.get_index<"bykey"_n>();
-
-      // Retrieve the requests array length from storage (key = 8).
-      uint64_t requests_length = 0;
-      bool found = false;
-      for (auto itr = bridge_account_states_bykey.begin(); itr != bridge_account_states_bykey.end(); ++itr) {
-         auto keyArray = itr->key.extract_as_byte_array();
-         uint256_t keyValue = intx::be::unsafe::load<uint256_t>(keyArray.data());
-         if (keyValue == STORAGE_BRIDGE_REQUEST_INDEX) {
-            requests_length = static_cast<uint64_t>(itr->value);
-            found = true;
-            break;
-         }
-      }
-      check(found, ("No requests found at expected length key. Expected key: " + rawKeyHex).c_str());
-
-      // Sequential layout: Each request occupies 9 slots.
-      uint8_t request_property_count = 9;
-
-      // Process at most 2 requests.
-      for (uint64_t i = 0; i < requests_length && i < 2; i++) {
-         // Compute keys for each field using sequential layout.
-         // call_id is the index of the request
-         checksum256 key_sender                = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 1);
-         checksum256 key_amount                = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 2);
-         checksum256 key_requested_at          = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 3);
-         checksum256 key_antelope_token_contract = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 4);
-         checksum256 key_antelope_symbol       = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 5);
-         checksum256 key_receiver              = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 6);
-         checksum256 key_packed                = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 7);
-         checksum256 key_memo                  = computeDynamicDataKey(STORAGE_BRIDGE_REQUEST_INDEX, i, request_property_count, 8);
-
-         // Local variables for decoded data.
-         uint256_t call_id = 0;
-         std::string senderStr;
-         uint256_t amount = 0;
-         uint256_t requested_at = 0;
-         std::string antelope_token_contract_raw;
-         std::string antelope_token_contract;
-         std::string antelope_token_symbol;
-         std::string memoStr;
-         name receiver;
-         uint8_t evm_decimals = 0;
-         uint8_t request_status = 0;
-         uint256_t packed_value = 0;
-
-         // Check if the key exists for sender
-        auto it_sender = bridge_account_states_bykey.find(key_sender);
-        check(it_sender != bridge_account_states_bykey.end(), 
-            ("Missing sender at element index " + std::to_string(i)));
-        senderStr = parseStringFromStorage(it_sender->value);       
-
-         // Retrieve amount.
-         {
-            auto it = bridge_account_states_bykey.find(key_amount);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing amount at element index " + std::to_string(i)));
-            amount = it->value;
-         }
-
-         // Retrieve requested_at.
-         {
-            auto it = bridge_account_states_bykey.find(key_requested_at);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing requested_at at element index " + std::to_string(i)));
-            requested_at = it->value;
-         }
-
-         // Retrieve antelope_token_contract.
-         {
-            auto it = bridge_account_states_bykey.find(key_antelope_token_contract);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing antelope_token_contract at element index " + std::to_string(i)).c_str());
-            uint256_t rawValue = it->value;
-            std::array<uint8_t, 32> arr = {};
-            intx::be::unsafe::store(arr.data(), rawValue);
-            antelope_token_contract_raw = bin2hex(arr);
-            antelope_token_contract = parseStringFromStorage(rawValue);
-         }
-         // Retrieve antelope_token_symbol.
-         {
-            auto it = bridge_account_states_bykey.find(key_antelope_symbol);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing antelope_token_symbol at element index " + std::to_string(i)));
-            antelope_token_symbol = parseStringFromStorage(it->value);
-
-         }
-         // Retrieve receiver.
-         {
-            auto it = bridge_account_states_bykey.find(key_receiver);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing receiver at element index " + std::to_string(i)));
-            std::string raw_receiver = parseStringFromStorage(it->value);
-
-            std::transform(raw_receiver.begin(), raw_receiver.end(), raw_receiver.begin(), ::tolower);
-            for (char c : raw_receiver) {
-               check((c >= 'a' && c <= 'z') || (c >= '1' && c <= '5') || c == '.',
-                     ("Invalid character in receiver at element index " + std::to_string(i) +
-                      "; Full raw string: " + raw_receiver).c_str());
-            }
-            receiver = name(raw_receiver);
-         }
-         // Retrieve packed field and extract evm_decimals and request_status.
-         {
-            auto it = bridge_account_states_bykey.find(key_packed);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing packed field at element index " + std::to_string(i)));
-            packed_value = it->value;
-            evm_decimals   = static_cast<uint8_t>(packed_value & 0xFF);
-            request_status = static_cast<uint8_t>((packed_value >> 8) & 0xFF);
-
-         }
-
-         // Retrieve memo.
-         {
-            auto it = bridge_account_states_bykey.find(key_memo);
-            check(it != bridge_account_states_bykey.end(),
-                  ("Missing memo at element index " + std::to_string(i)));
-            memoStr = parseStringFromStorage(it->value);
-
-         }
-
-         // Validate that the antelope token contract matches the configured native token.
-         std::string norm_evm_token_contract = normalizeString(antelope_token_contract);
-         std::string norm_native_token_contract = normalizeString(conf.native_token_contract.to_string());
-         check(norm_evm_token_contract == norm_native_token_contract, ("Mismatch in antelope token contract"));
-         check(request_status == 0, ("Request is not pending"));
-
-         // Check if this request has already been processed.
-         auto requests_by_callid = requests.get_index<"callid"_n>();
-         auto exists = requests_by_callid.find(toChecksum256(call_id));
-         if (exists != requests_by_callid.end()) {
-            // Already processed; skip.
-            continue;
-         }
-
-         // Record the request locally and transfer tokens
-        requests.emplace(this->get_self(), [&](auto& r) {
-            r.call_id = toChecksum256(call_id);
-            r.timestamp  = current_time_point();
-        });
-
-        uint8_t native_decimals = conf.native_token_symbol.precision();  // gives 4
-        std::string nativeCode = conf.native_token_symbol.code().to_string(); // gives "BOID"
-
-        // Compute the scale factor for conversion (10^(native_decimals)).
-        uint64_t scale = 1;
-
-        for (uint8_t i = 0; i < native_decimals; i++) { scale *= 10; }
-        // Convert the raw amount (a uint256_t with 18 decimals) into the native token amount.
-        uint256_t converted = amount * scale;       // Multiply first to preserve precision.
-        converted /= 1000000000000000000ULL;          // Divide by 10^18 (EVM decimals).
-        uint64_t adjusted_amount = static_cast<uint64_t>(converted);
-
-        // Now build the asset with the adjusted amount.
-        eosio::asset quantity(adjusted_amount, conf.native_token_symbol);
-        action(
-            permission_level{get_self(), "active"_n},
-            eosio::name(conf.native_token_contract),
-            "transfer"_n,
-            std::make_tuple(get_self(), receiver, quantity, memoStr)
-        ).send();
-
         // -----------------------------------------------------------------
-        // Callback on EVM side to mark success: requestSuccessful(uint id)
-        std::vector<uint8_t> call_id_bs = pad(intx::to_byte_string(call_id), 32, true);
-        auto evm_contract_bytes = conf.evm_bridge_address.extract_as_byte_array();
-        std::vector<uint8_t> evm_to(evm_contract_bytes.begin(), evm_contract_bytes.end());
-        auto fnsig = toBin(EVM_SUCCESS_CALLBACK_SIGNATURE);
-        std::vector<uint8_t> data;
-        data.insert(data.end(), fnsig.begin(), fnsig.end());
-        data.insert(data.end(), call_id_bs.begin(), call_id_bs.end());
+        // call the refundStuckReq() function on the EVM
+        auto fnsig_arr = toBin(EVM_REF_STUCK_REQ_SIGNATURE);
+        std::vector<uint8_t> data(fnsig_arr.begin(), fnsig_arr.end());
+        uint64_t current_nonce = evm_account->nonce; // Get current nonce
         action(
             permission_level{get_self(), "active"_n},
             eosio::name(EVM_SYSTEM_CONTRACT),
             "raw"_n,
             std::make_tuple(
                 get_self(),
-                rlp::encode(evm_account->nonce + i, gas_price_val, SUCCESS_CB_GAS, evm_to,
+                rlp::encode(current_nonce, gas_price_val, SUCCESS_CB_GAS, evm_account->address.extract_as_byte_array(),
+                            uint256_t(0), data, conf.evm_chain_id, 0, 0),
+                false,
+                std::optional<eosio::checksum160>(evm_account->address)
+            )
+        ).send();
+    };
+
+    // Trustless bridge from tEVM
+    [[eosio::action]]
+    void tokenbridge::reqnotify(uint64_t req_id)
+    {
+        // Open config
+        auto conf = config_bridge.get();
+
+        // Load the EVM system config
+        evm_config_table evmconfig(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto it_config = evmconfig.begin();
+        check(it_config != evmconfig.end(), "No config row found in eosio.evm's 'config' table");
+        auto evm_conf = *it_config;
+
+        // Gas price calculation
+        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
+
+        // Find the EVM account of this contract
+        account_table _accounts(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto accounts_byaccount = _accounts.get_index<"byaccount"_n>();
+        auto evm_account = accounts_byaccount.require_find(get_self().value,
+            ("EVM account not found for " + std::string(BRIDGE_CONTRACT_NAME)).c_str());
+
+        // ------------------------------------------------------------------
+        // Compute the base key for the mapping entry for this request.
+        eosio::checksum256 baseKey = computeMappingKey(req_id, STORAGE_BRIDGE_REQUESTS_INDEX);
+
+        // Each Request struct occupies 9 storage slots.
+        uint8_t request_property_count = 9;
+        // Compute keys for each property by adding the property index as an offset.
+        checksum256 key_request_id             = addToChecksum256(baseKey, 0);
+        checksum256 key_sender                 = addToChecksum256(baseKey, 1);
+        checksum256 key_amount                 = addToChecksum256(baseKey, 2);
+        checksum256 key_requested_at           = addToChecksum256(baseKey, 3);
+        checksum256 key_antelope_token_contract= addToChecksum256(baseKey, 4);
+        checksum256 key_antelope_symbol        = addToChecksum256(baseKey, 5);
+        checksum256 key_receiver               = addToChecksum256(baseKey, 6);
+        checksum256 key_packed                 = addToChecksum256(baseKey, 7);
+        checksum256 key_memo                   = addToChecksum256(baseKey, 8);
+        // ------------------------------------------------------------------
+
+
+        // Open the account state table.
+        account_state_table bridge_account_states(name(EVM_SYSTEM_CONTRACT), conf.evm_bridge_scope);
+        auto bridge_account_states_bykey = bridge_account_states.get_index<"bykey"_n>();
+
+        // Declare variables to hold the EVM data.
+        uint256_t stored_req_id = 0;
+        std::string senderStr;
+        uint256_t amountVal = 0;
+        uint256_t requestedAtVal = 0;
+        std::string evm_token_contract;
+        std::string evm_token_contract_raw;
+        std::string evm_token_symbol;
+        std::string memoStr;
+        eosio::name receiver;
+        uint8_t evm_decimals = 0;
+        uint8_t request_status = 0;
+        uint256_t packed_value = 0;
+
+        auto it_req_id = bridge_account_states_bykey.find(key_request_id);
+        auto it_sender = bridge_account_states_bykey.find(key_sender);
+        auto it_amount = bridge_account_states_bykey.find(key_amount);
+        auto it_requested_at = bridge_account_states_bykey.find(key_requested_at);
+        auto it_antelope_token_contract = bridge_account_states_bykey.find(key_antelope_token_contract);
+        auto it_antelope_symbol = bridge_account_states_bykey.find(key_antelope_symbol);
+        auto it_receiver = bridge_account_states_bykey.find(key_receiver);
+        auto it_packed = bridge_account_states_bykey.find(key_packed);
+        auto it_memo = bridge_account_states_bykey.find(key_memo);
+
+        std::vector<evm_bridge::KeyCheck> key_checks = {
+            evm_bridge::KeyCheck("request_id", it_req_id, key_request_id),
+            evm_bridge::KeyCheck("sender", it_sender, key_sender),
+            evm_bridge::KeyCheck("amount", it_amount, key_amount),
+            evm_bridge::KeyCheck("requested_at", it_requested_at, key_requested_at),
+            evm_bridge::KeyCheck("token_contract", it_antelope_token_contract, key_antelope_token_contract),
+            evm_bridge::KeyCheck("token_symbol", it_antelope_symbol, key_antelope_symbol),
+            evm_bridge::KeyCheck("receiver", it_receiver, key_receiver),
+            evm_bridge::KeyCheck("packed", it_packed, key_packed),
+            evm_bridge::KeyCheck("memo", it_memo, key_memo)
+        };
+
+        // Check if all keys are present
+        checkStorageKeys(key_checks, bridge_account_states_bykey);
+
+        // Extract values from the EVM state
+        // Request ID
+        stored_req_id = it_req_id->value;
+        
+        // Sender
+        senderStr = "0x" + bin2hex(parseAddressFromStorage(it_sender->value));
+        
+        // Amount
+        amountVal = it_amount->value;
+        
+        // Requested at
+        requestedAtVal = it_requested_at->value;
+        
+        // Token contract
+        evm_token_contract_raw = bin2hex(parseAddressFromStorage(it_antelope_token_contract->value));
+        evm_token_contract = parseStringFromStorage(it_antelope_token_contract->value);
+        
+        // Token symbol
+        evm_token_symbol = parseStringFromStorage(it_antelope_symbol->value);
+        
+        // Receiver
+        std::string raw_receiver = parseStringFromStorage(it_receiver->value);
+        std::transform(raw_receiver.begin(), raw_receiver.end(), raw_receiver.begin(), ::tolower);
+        // Validate and truncate to 12 chars max for EOSIO name
+        check(raw_receiver.length() <= 12, "Receiver name too long" + std::to_string(raw_receiver.length()) +
+        "TokenSymbol: " + evm_token_symbol + "TokenContract: " + evm_token_contract);
+        if (raw_receiver.length() > 12) {
+            raw_receiver = raw_receiver.substr(0, 12);
+        }
+        receiver = eosio::name(raw_receiver);
+
+        // Packed
+        packed_value = it_packed->value;
+        // Decimals
+        evm_decimals = static_cast<uint8_t>(packed_value & 0xFF);
+        // Request status
+        request_status = static_cast<uint8_t>((packed_value >> 8) & 0xFF);
+        check(request_status == 0, 
+            "Request status must be Pending (0) to process. Current status: " + 
+            std::to_string(request_status));
+
+        // Memo
+        memoStr = parseStringFromStorage(it_memo->value);
+
+        // Check if the request is pending
+        check(request_status == 0, "Request is not pending");
+
+        std::string norm_evm_token_contract = normalizeString(evm_token_contract);
+        std::string norm_native_token_contract = normalizeString(conf.native_token_contract.to_string());
+        check(norm_evm_token_contract == norm_native_token_contract, "Mismatch in antelope token contract");
+
+        // compare request id with the stored request id
+        check(stored_req_id == intx::uint256(req_id),
+            ("Request ID " + intx::to_string(stored_req_id) + " already exists").c_str());
+
+        // Convert the signature hex string to a 20-byte array
+        std::array<uint8_t, 20> full_sig_arr = toBin(EVM_SUCCESS_CALLBACK_SIGNATURE);
+        // Then create a vector containing only the first 4 bytes (the actual selector)
+        std::vector<uint8_t> fnsig_bs(full_sig_arr.begin(), full_sig_arr.begin() + 4);
+
+        // Prepare 32-byte uint256 parameter for the request id
+        std::array<uint8_t, 32> req_id_arr = uint256ToBytes(stored_req_id);
+        std::vector<uint8_t> req_id_bs(req_id_arr.begin(), req_id_arr.end());
+
+        // Build the calldata: function selector (4 bytes) + padded parameter (32 bytes)
+        std::vector<uint8_t> data = fnsig_bs; // start with the 4-byte selector
+        data.insert(data.end(), req_id_bs.begin(), req_id_bs.end());
+
+        // Get the EVM contract address bytes
+        auto evm_contract_bytes = conf.evm_bridge_address.extract_as_byte_array();
+        std::vector<uint8_t> evm_to(evm_contract_bytes.begin(), evm_contract_bytes.end());
+
+        // Get the current nonce and send the action
+        uint64_t current_nonce = evm_account->nonce;
+        action(
+            permission_level{get_self(), "active"_n},
+            eosio::name(EVM_SYSTEM_CONTRACT),
+            "raw"_n,
+            std::make_tuple(
+                get_self(),
+                rlp::encode(current_nonce, gas_price_val, SUCCESS_CB_GAS, evm_to,
                             uint256_t(0), data, conf.evm_chain_id, 0, 0),
                 false,
                 std::optional<eosio::checksum160>(evm_account->address)
             )
         ).send();
 
-        // Final check: confirm the request is still pending
-        check(request_status == 0,
-            ("Request is not pending. Packed value: " + intx::to_string(packed_value)).c_str());
-    } // end for
-   }
+        require_recipient(eosio::name(EVM_SYSTEM_CONTRACT));
+
+        requests_table _requests(get_self(), get_self().value);
+
+        auto existing_request = _requests.find(static_cast<uint64_t>(stored_req_id));
+        check(existing_request == _requests.end(), 
+            ("Request ID " + intx::to_string(stored_req_id) + " already exists").c_str());
+
+        uint64_t wei_scale_factor = 1000000000000000000ULL; // 1e18 for ETH decimals
+        _requests.emplace(get_self(), [&](auto& r) {
+            r.request_id = static_cast<uint64_t>(stored_req_id);
+            
+            uint64_t evm_timestamp_sec = static_cast<uint64_t>(requestedAtVal);
+            r.timestamp = time_point(seconds(evm_timestamp_sec));
+            
+            uint64_t amount = static_cast<uint64_t>(amountVal / wei_scale_factor);
+            check(amountVal == amount * wei_scale_factor, "Precision loss detected");
+            r.amount = amount;
+            
+            r.processed = false;
+            r.receiver = receiver;
+            r.sender = senderStr;
+            r.memo = memoStr;
+        });
+    }
+
+    [[eosio::action]]
+    void tokenbridge::verifytrx(uint64_t req_id) {
+        auto conf = config_bridge.get();
+        requests_table requests(get_self(), get_self().value);
+        
+        // 1. Cleanup old processed requests (older than 24h)
+        auto by_time = requests.get_index<"timestamp"_n>();
+        auto twenty_four_hours_ago = current_time_point() - hours(24);
+        auto cleanup_cutoff = twenty_four_hours_ago.sec_since_epoch();
+        
+        // Iterate from oldest to newest until we hit non-expired entries
+        auto itr = by_time.begin();
+        while(itr != by_time.end() && itr->timestamp <= twenty_four_hours_ago) {
+            if(itr->processed) {
+                itr = by_time.erase(itr); // Delete processed and expired
+            } else {
+                ++itr; // Keep unprocessed but expired
+            }
+        }
+
+        // 2. Check requested transaction
+        auto itr_req = requests.require_find(req_id, "Request not found");
+        check(!itr_req->processed, "Request already processed");
+
+        // 3. Verify EVM state
+        checksum256 baseKey = computeMappingKey(req_id, STORAGE_BRIDGE_REQUESTS_INDEX);
+
+        account_state_table fresh_account_states(name(EVM_SYSTEM_CONTRACT), conf.evm_bridge_scope);
+        auto fresh_states_bykey = fresh_account_states.get_index<"bykey"_n>();
+        auto base_key_itr = fresh_states_bykey.find(baseKey);
+
+        check(base_key_itr == fresh_states_bykey.end(), 
+            ("Request ID " + std::to_string(req_id) + " still exists in EVM storage. Key: " + 
+             bin2hex(baseKey.extract_as_byte_array())).c_str());
+
+        // 4. Process transfer
+        uint8_t decimals = conf.native_token_symbol.precision(); // Get decimals from symbol (e.g. 4)
+        uint64_t scaled_amount = itr_req->amount * pow(10, decimals); // Convert whole number to asset units
+        asset quantity(scaled_amount, conf.native_token_symbol);
+        
+        action(
+            permission_level{get_self(), "active"_n},
+            conf.native_token_contract,
+            "transfer"_n,
+            make_tuple(get_self(), itr_req->receiver, quantity, itr_req->memo)
+        ).send();
+
+        // 5. Mark processed
+        requests.modify(itr_req, same_payer, [&](auto& r) {
+            r.processed = true;
+            r.timestamp = current_time_point(); // Update timestamp for cleanup
+        });
+    }
+
+    // Remove a request from the table | ONLY FOR EMERGENCY USE
+    [[eosio::action]]
+    void tokenbridge::rmreq(uint64_t req_id) {
+        require_auth(get_self());
+        requests_table requests(get_self(), get_self().value);
+        auto itr = requests.require_find(req_id, "Request not found");
+        requests.erase(itr);
+    }
 }

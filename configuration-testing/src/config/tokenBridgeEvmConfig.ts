@@ -2,11 +2,11 @@ import { ethers } from "ethers";
 import { getEthersConfig } from "src/config/configEVM";
 import { getEnvData } from "src/env";
 import { TokenBridge__factory } from "src/types/TokenBridgeEVM/factories/TokenBridge__factory";
-import { TokenBridge } from "src/types/TokenBridgeEVM/TokenBridge"
+import { TokenBridge } from "src/types/TokenBridgeEVM/TokenBridge";
 
 const network = "testnet"; // or "mainnet"
 const env = getEnvData(network);
-
+const contractAddress = env.TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS;
 const gasLimit = BigInt(8000000);
 console.log(`Gas limit: ${gasLimit}`);
 
@@ -31,8 +31,7 @@ function parseBytes32ToString(bytes32Val: string): string {
 
 // Define the interface for the request response
 interface BridgeRequest {
-  index: number;
-  id: string;
+  id: number;
   sender: string;
   amount: string;
   requested_at: Date;
@@ -41,182 +40,171 @@ interface BridgeRequest {
   receiver: string;
   evm_decimals: number;
   status: string;
-  lastAttempt: number;
   memo: string;
 }
 
-// Function to query a specific request
-async function queryRequest(
+export async function getRecentContractEvents(
   network: "mainnet" | "testnet",
   contractAddress: string,
-  index: number
-): Promise<BridgeRequest | null> {
-  const { wallet } = getEthersConfig(network);
-  const contract: TokenBridge = TokenBridge__factory.connect(contractAddress, wallet);
+  hours: number
+): Promise<any[]> {
+  const { wallet, provider } = getEthersConfig(network);
+  const currentBlock = await provider.getBlock("latest");
+  if (!currentBlock) {
+    throw new Error("Failed to get current block");
+  }
+  // Adjust the average block time (in seconds) as needed
+  const averageBlockTime = 0.5;
+  const blocksAgo = Math.floor((hours * 3600) / averageBlockTime);
+  const fromBlock = currentBlock.number > blocksAgo ? currentBlock.number - blocksAgo : 0;
+  
+  // Retrieve all logs for this contract since fromBlock
+  const logs = await provider.getLogs({
+    address: contractAddress,
+    fromBlock,
+    toBlock: currentBlock.number
+  });
+  
+  // Connect to the contract to allow decoding logs using its interface
+  const contract = TokenBridge__factory.connect(contractAddress, wallet);
+  
+  // Parse each log and combine with its block info
+  const eventsWithBlock = logs.map(log => {
+      try {
+          const parsed = contract.interface.parseLog(log);
+          if (!parsed) {
+            return null;
+          }
 
+          return {
+              blockNumber: log.blockNumber,
+              logIndex: (log as any).logIndex,
+              event: parsed.name,
+              args: parsed.args,
+              parsedLog: parsed
+          };
+      } catch (err) {
+          return null;
+      }
+  }).filter(e => e !== null);
+  
+  // Sort events in chronological order
+  eventsWithBlock.sort((a, b) => {
+      if(a.blockNumber !== b.blockNumber) return a.blockNumber - b.blockNumber;
+      return a.logIndex - b.logIndex;
+  });
+  
+  return eventsWithBlock;
+}
+
+export async function queryActiveRequests(
+  network: "mainnet" | "testnet",
+  contractAddress: string
+): Promise<BridgeRequest[]> {
+  const { provider } = getEthersConfig(network);
+  
+  // 1. Get all active request IDs from the array
+  const activeIds = await getActiveRequestIds(provider, contractAddress);
+  
+  // 2. Fetch each request in parallel
+  const requests = await Promise.all(
+    activeIds.map(requestId => getRequestById(provider, contractAddress, requestId))
+  );
+
+  return requests.filter(r => r !== null) as BridgeRequest[];
+}
+
+async function getActiveRequestIds(provider: any, contractAddress: string): Promise<bigint[]> {
+  // Get array length from slot 10
+  const lengthHex = await provider.getStorage(contractAddress, 10);
+  const length = Number(BigInt(lengthHex));
+  
+  // Get all elements from the array
+  const ids: bigint[] = [];
+  const arrayBaseSlot = ethers.keccak256(
+    new ethers.AbiCoder().encode(["uint256"], [10])
+  );
+  
+  for (let i = 0; i < length; i++) {
+    const slot = BigInt(arrayBaseSlot) + BigInt(i);
+    const idHex = await provider.getStorage(contractAddress, "0x" + slot.toString(16));
+    ids.push(BigInt(idHex));
+  }
+  
+  return ids;
+}
+
+async function getRequestById(provider: any, contractAddress: string, requestId: bigint): Promise<BridgeRequest | null> {
   try {
-    const request = await contract.requests(index);
-    if (request.sender === "0x0000000000000000000000000000000000000000") {
-      return null; // Skip empty requests
-    }
-    // Decode the bytes32 fields into strings
-    const antelopeTokenContractStr = parseBytes32ToString(request.antelope_token_contract);
-    const antelopeSymbolStr        = parseBytes32ToString(request.antelope_symbol);
-    const receiverStr              = parseBytes32ToString(request.receiver);
-    const memoStr                  = parseBytes32ToString(request.memo);
-
-    // Convert other fields from BigInt => string or number
-    const idStr    = request.id.toString();
-    const amountStr= request.amount.toString();
-    const status   = request.status; // a BigInt for the enum, typically
-    const statusNum= (typeof status === "number")
-       ? status
-       : Number(status); // Convert BigInt to number
-
-    // Log
-    console.log(`\nRequest[${index}] =>`);
-    console.log(`ID: ${idStr}`);
-    console.log(`Sender: ${request.sender}`);
-    console.log(`Amount: ${amountStr}`);
-    console.log(`Requested At (epoch): ${request.requested_at.toString()}`);
-    console.log(`Antelope Token Contract: ${antelopeTokenContractStr}`);
-    console.log(`Antelope Symbol: ${antelopeSymbolStr}`);
-    console.log(`Receiver: ${receiverStr}`);
-    console.log(`EVM Decimals: ${request.evm_decimals}`);
-    console.log(`Status: ${statusNum} (0=Pending,1=Completed,2=Failed)`);
-    console.log(`Last Attempt: ${request.lastAttempt.toString()}`);
-    console.log(`Memo: ${memoStr}`);
+    const baseSlot = ethers.keccak256(
+      new ethers.AbiCoder().encode(["uint256", "uint256"], [requestId, 9])
+    );
     
-    // Return structured data
+    // Read all required slots in parallel
+    const [sender, amount, requestedAt, tokenContract, symbol, receiver, packedData, memo] = await Promise.all([
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 1n), // sender
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 2n), // amount
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 3n), // requested_at
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 4n), // antelope_token_contract
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 5n), // antelope_symbol
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 6n), // receiver
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 7n), // evm_decimals + status
+      readStorageSlot(provider, contractAddress, BigInt(baseSlot) + 8n), // memo
+    ]);
+
+    // Extract packed values (evm_decimals + status)
+    const packedValue = BigInt(packedData);
+    const evmDecimals = Number(packedValue & 0xFFn);
+    const status = String((packedValue >> 8n) & 0xFFn);
+
     return {
-      index,
-      id: request.id.toString(),
-      sender: request.sender,
-      amount: request.amount.toString(),
-      requested_at: new Date(Number(request.requested_at) * 1000),
-      antelope_token_contract: request.antelope_token_contract,
-      antelope_symbol: request.antelope_symbol,
-      receiver: request.receiver,
-      evm_decimals: Number(request.evm_decimals),
-      status: request.status.toString(),
-      lastAttempt: Number(request.lastAttempt),
-      memo: request.memo
+      id: Number(requestId),
+      sender: "0x" + sender.slice(-40),
+      amount: (Number(ethers.formatUnits(BigInt(amount), evmDecimals)).toFixed(0)),
+      requested_at: new Date(Number(BigInt(requestedAt)) * 1000),
+      antelope_token_contract: parseBytes32ToString(tokenContract),
+      antelope_symbol: parseBytes32ToString(symbol),
+      receiver: parseBytes32ToString(receiver),
+      evm_decimals: evmDecimals,
+      status: status,
+      memo: parseBytes32ToString(memo)
     };
-  } catch (error: any) {
-    if (error.message.includes("invalid array access")) {
-      return null; // End of array reached
-    }
-    console.error(`Error querying request at index ${index}:`, error);
+  } catch {
     return null;
   }
 }
 
-// Function to query a specific refund
-async function queryRefund(
+// Helper to read storage slots
+async function readStorageSlot(provider: any, contractAddress: string, slot: bigint) {
+  return await provider.getStorage(contractAddress, "0x" + slot.toString(16));
+}
+
+export async function testRefundRequest(
   network: "mainnet" | "testnet",
   contractAddress: string,
-  index: number
-) {
-  const { wallet } = getEthersConfig(network);
-  const contract: TokenBridge = TokenBridge__factory.connect(contractAddress, wallet);
-
+  requestId: number
+): Promise<void> {
   try {
-    const refund = await contract.refunds(index);
-    if (refund.receiver === "") {
-      return null; // Skip empty refunds
-    }
-    // Decode the bytes32 fields
-    const contractStr = parseBytes32ToString(refund.antelope_token_contract);
-    const symbolStr   = parseBytes32ToString(refund.antelope_symbol);
-    const receiverStr = parseBytes32ToString(refund.receiver);
-
-    // Convert others
-    const idStr     = refund.id.toString();
-    const amountStr = refund.amount.toString();
-    const statusNum = Number(refund.status); // Convert BigInt to number
-
-    console.log(`\nRefund[${index}] =>`);
-    console.log(`ID: ${idStr}`);
-    console.log(`Amount: ${amountStr}`);
-    console.log(`Antelope Contract: ${contractStr}`);
-    console.log(`Symbol: ${symbolStr}`);
-    console.log(`Receiver: ${receiverStr}`);
-    console.log(`Sender: ${refund.sender}`);
-    console.log(`Decimals: ${refund.evm_decimals}`);
-    console.log(`Status: ${statusNum}`);
-    console.log(`LastAttempt: ${refund.lastAttempt.toString()}`);
+    const { wallet } = getEthersConfig(network, 1);
+    const contract = TokenBridge__factory.connect(contractAddress, wallet);
     
-    // Return structured data
-    return {
-      index,
-      id: refund.id.toString(),
-      amount: refund.amount.toString(),
-      antelope_token_contract: refund.antelope_token_contract,
-      antelope_symbol: refund.antelope_symbol,
-      receiver: refund.receiver,
-      evm_decimals: Number(refund.evm_decimals)
-    };
-  } catch (error: any) {
-    if (error.message.includes("invalid array access")) {
-      return null; // End of array reached
-    }
-    console.error(`Error querying refund at index ${index}:`, error);
-    return null;
+    console.log(`Attempting to refund request ID ${requestId}...`);
+    const tx = await contract.refundRequest(requestId);
+    const receipt = await tx.wait();
+    
+    if (!receipt) throw new Error("Transaction receipt is null");
+    console.log(`Refund successful! Transaction hash: ${receipt.hash}`);
+    console.log(`Refund successful! Transaction hash: ${receipt.status}`);
+  } catch (error) {
+    console.error("Error processing refund:", error);
+    throw error;
   }
 }
 
-// Function to query all requests and refunds
-async function queryAllRequestsAndRefunds(
-  network: "mainnet" | "testnet",
-  contractAddress: string,
-  maxItems: number = 100
-) {
-  console.log(`\nQuerying up to ${maxItems} requests and refunds...`);
-  const requests: Array<NonNullable<Awaited<ReturnType<typeof queryRequest>>>> = [];
-  const refunds: Array<NonNullable<Awaited<ReturnType<typeof queryRefund>>>> = [];
-  
-  console.log("\nChecking Requests...");
-  for (let i = 0; i < maxItems; i++) {
-    const request = await queryRequest(network, contractAddress, i);
-    if (request) {
-      requests.push(request);
-    }
-    if (!request && i > 0) break; // Stop if we hit an empty slot after finding some requests
-  }
-  
-  console.log("\nChecking Refunds...");
-  for (let i = 0; i < maxItems; i++) {
-    const refund = await queryRefund(network, contractAddress, i);
-    if (refund) {
-      refunds.push(refund);
-    }
-    if (!refund && i > 0) break; // Stop if we hit an empty slot after finding some refunds
-  }
-  
-  console.log(`\nSummary:`);
-  console.log(`- Found ${requests.length} active requests`);
-  console.log(`- Found ${refunds.length} pending refunds`);
+// testRefundRequest("testnet", contractAddress, 1);
 
-  return {
-    requests,
-    refunds,
-    summary: {
-      activeRequests: requests.length,
-      pendingRefunds: refunds.length
-    }
-  };
-}
 
-// Example usage
-(async () => {
-  const network = "testnet";
-  const contractAddress = env.TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS;
-  if (!contractAddress) {
-    console.error("TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS not found in environment variables");
-    return;
-  }
-
-  console.log("Checking TokenBridge status...");
-  const result = await queryAllRequestsAndRefunds(network, contractAddress, 100);
-  console.log(result);
-})();
+// get all active requests with details
+queryActiveRequests("testnet", contractAddress).then(requests => {
+  console.log(requests);
+});

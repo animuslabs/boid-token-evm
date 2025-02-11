@@ -2,8 +2,10 @@ import { ethers } from "ethers";
 
 const signatures = {
     "EVM_SUCCESS_CALLBACK_SIGNATURE": "requestSuccessful(uint256)",
-    "EVM_REFUND_CALLBACK_SIGNATURE": "refundSuccessful(uint256)",
     "EVM_BRIDGE_SIGNATURE": "bridgeTo(address,address,uint256,bytes32)",
+    "EVM_REF_STUCK_REQ_SIGNATURE": "refundStuckReq()",
+    "EVM_CLEAR_FAILED_REQUESTS_SIGNATURE": "clearFailedRequests()",
+    "EVM_REMOVE_REQUEST_SIGNATURE": "removeRequest(uint256)",
 };
 
 for (const [name, signature] of Object.entries(signatures)) {

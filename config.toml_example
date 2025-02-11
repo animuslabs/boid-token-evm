@@ -18,20 +18,21 @@ TOKEN_CONTRACT_DEPLOYER_ACC="0x1D8F40d91602DF5117Bd6D97D2aC4EDE5C9FB300" # addre
 TOKEN_CONTRACT_OWNER_ACC="0x1D8F40d91602DF5117Bd6D97D2aC4EDE5C9FB300" # address which will be the owner of the token contract, from private key
 TOKEN_CONTRACT_DEPLOYED_ACC="0x932Ebc45117A00be19b27A586142b94d14D8a8aA" # address from which the token contract was deployed, from private key
 
-TOKEN_NAME="BOID" # name of the token
-TOKEN_SYMBOL="BOID" # symbol of the token
-
 TESTNET_LZ_ENDPOINT="0x6EDCE65403992e310A62460808c4b910D972f10f" # Layer Zero Endpoint verify here: https://docs.layerzero.network/v2/developers/evm/technical-reference/deployed-contracts
 LZ_ENDPOINT="0x1a44076050125825900e736c501f859c50fE728c" # on mainnet
 
 [EVM_bridge_contract]
 ANTELOPE_BRIDGE_EVM_ADDRESS="0x245aE39B8bd7074febFBF94A8310498E015cC0cB" # Antelope Bridge EVM address that was generated on the account evm.boid on Telos Native
-MAX_REG_REQUEST_PER_REQUESTOR="10"
 MAX_BRIDGE_REQUEST_PER_REQUESTOR="10"
-PAIR_BRIDGE_REGISTER_ADDRESS="0x510dC84BfaA622f5dEa0B381880fd3F482c7b8Eb" # Pair Bridge Register address when the bridge is deployed
+TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS="0xa40A7FAcCe00a9f265c9259907c99afbFCd1B76B" # Bridge EVM address (TokenBridge.sol) that was deployed on the EVM side
 BRIDGE_FEE="500000000000000000" # 0.5 tokens
 BRIDGE_MIN_AMOUNT="1000000000000000000" # 1 token on the EVM side
+
 
 [Native_contracts]
 BRIDGE_CONTRACT_NAME="evm.boid"
 FEES_CONTRACT_NAME="xsend.boid"
+EVM_SYSTEM_CONTRACT="eosio.evm"
+TOKEN_CONTRACT_NAME="token.boid"
+TOKEN_NAME="BOID"
+TOKEN_SYMBOL="4,BOID"

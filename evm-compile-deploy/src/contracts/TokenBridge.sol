@@ -6,6 +6,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20Bridgeable} from "./IERC20Bridgeable.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 // Define the RequestStatus enum
 enum RequestStatus { Pending, Completed, Failed, Refunded }
@@ -36,6 +37,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
     //  Events
     // ------------------------------------------------------------------
     event BridgeTransaction(
+        uint indexed id,
         address indexed receiver,
         address indexed token,
         uint amount,
@@ -122,13 +124,17 @@ contract TokenBridge is Ownable, ReentrancyGuard {
         RequestStatus status;
         bytes32 memo;
     }
-    Request[] public requests;
+    // Mapping from request id to Request
+    mapping(uint => Request) public requests;
+    // An array to hold active request ids for iteration
+    uint[] public activeRequestIds;
+    // Mapping from request id to its index in activeRequestIds
+    mapping(uint => uint) private activeRequestIndex;
+    // Unique request id counter – always increases
+    uint public request_id;
 
-    uint public constant REQUEST_TIMEOUT = 1 hours;
-    
+    uint public constant REQUEST_TIMEOUT = 30 minutes;
     mapping(address => uint) public request_counts;
-
-    uint request_id;
     uint public min_amount;
 
     constructor(
@@ -152,7 +158,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
         antelope_token_contract = _leftAlignToBytes32(_antelope_token_contract);
         antelope_token_name = _leftAlignToBytes32(_antelope_token_name);
         antelope_symbol = _leftAlignToBytes32(_antelope_symbol);
-        request_id = 0;
+        request_id = 1; // this is the first request id - IMPORTANT NOT TO BE 0
     }
 
     modifier onlyAntelopeBridge() {
@@ -168,6 +174,10 @@ contract TokenBridge is Ownable, ReentrancyGuard {
     // ----------------------------------------------------------
      function setFee(uint _fee) external onlyOwner {
         fee = _fee;
+     }
+
+     function setMinAmount(uint _min_amount) external onlyOwner {
+        min_amount = _min_amount;
      }
 
      function setMaxRequestsPerRequestor(uint8 _max_requests_per_requestor) external onlyOwner {
@@ -192,67 +202,75 @@ contract TokenBridge is Ownable, ReentrancyGuard {
     // ----------------------------------------------------------
     //  Internal Helper Functions
     // ----------------------------------------------------------
-    /// @notice Removes a request from storage by swapping with the last element.
-    function _removeRequest(uint i) internal {
-        address sender = requests[i].sender;
-        requests[i] = requests[requests.length - 1];
-        requests.pop();
-        request_counts[sender]--;
-     }
+    /// @notice Removes a request by its id from storage.
+    /// @dev Returns the sender so that request_counts can be adjusted.
+    function _removeRequest(uint id) internal returns (address sender) {
+        Request storage req = requests[id];
+        sender = req.sender;
+        // Swap the id with the last id in activeRequestIds
+        uint index = activeRequestIndex[id];
+        uint lastId = activeRequestIds[activeRequestIds.length - 1];
+        activeRequestIds[index] = lastId;
+        activeRequestIndex[lastId] = index;
+        activeRequestIds.pop();
+        delete activeRequestIndex[id];
+        delete requests[id];
+    }
 
     // ----------------------------------------------------------
     //  Main Bridge Functions
     // ----------------------------------------------------------
     /// @notice Called by the Antelope bridge to mark a request as successful.
     function requestSuccessful(uint id) external onlyAntelopeBridge nonReentrant {
-        for (uint i = 0; i < requests.length; i++) {
-            if (requests[i].id == id) {
-                require(requests[i].status == RequestStatus.Pending, "Request not in pending state");
-                requests[i].status = RequestStatus.Completed;
-                
-                emit RequestStatusCallback(
-                    id,
-                    requests[i].sender,
-                    bytes32ToString(requests[i].antelope_token_contract),
-                    bytes32ToString(requests[i].antelope_symbol),
-                    requests[i].amount,
-                    bytes32ToString(requests[i].receiver),
-                    RequestStatus.Completed,
-                    block.timestamp,
-                    "Request Success"
-                );
-                
-                _removeRequest(i);
-                emit RequestRemovalSuccess(id, requests[i].sender, block.timestamp, "Request successfully removed after successful request");
-                break;
-            }
-        }
+        Request storage req = requests[id];
+        require(req.status == RequestStatus.Pending, "Request not pending");
+        req.status = RequestStatus.Completed;
+        
+        emit RequestStatusCallback(
+            id,
+            req.sender,
+            bytes32ToString(req.antelope_token_contract),
+            bytes32ToString(req.antelope_symbol),
+            req.amount,
+            bytes32ToString(req.receiver),
+            RequestStatus.Completed,
+            block.timestamp,
+            "Request Success"
+        );
+        
+        address reqSender = _removeRequest(id);
+        request_counts[reqSender]--;
+        emit RequestRemovalSuccess(id, reqSender, block.timestamp, "Request successfully removed after successful request");
     }
 
     /// @notice Manually remove a request by id (only callable by the bridge).
     function removeRequest(uint id) external onlyAntelopeBridge nonReentrant returns (bool) {
-        for (uint i = 0; i < requests.length; i++) {
-            if (requests[i].id == id) {
-                _removeRequest(i);
-                return true;
-            }
+        if (requests[id].id != id) {
+            return false;
         }
-        return false;
+        address reqSender = _removeRequest(id);
+        request_counts[reqSender]--;
+        emit RequestRemovalSuccess(id, reqSender, block.timestamp, "Request manually removed by bridge");
+        return true;
     }
 
     /// @notice Allows manual cleanup of requests marked as Failed.
     /// Both the owner and the Antelope bridge can trigger this.
-    function clearFailedRequests() external onlyAntelopeBridge nonReentrant {
+    function clearFailedRequests() external nonReentrant {
+        require(msg.sender == antelope_bridge_evm_address || msg.sender == owner(), "Caller is not owner or Antelope bridge");
         uint i = 0;
-        while (i < requests.length) {
-            // Only remove requests that are in the Failed state.
-            if (requests[i].status == RequestStatus.Failed) {
-                emit FailedRequestCleared(requests[i].id, requests[i].sender, block.timestamp);
-                _removeRequest(i);
-                emit RequestRemovalSuccess(requests[i].id, requests[i].sender, block.timestamp, "Request successfully removed after failed request");
-                continue;
+        while (i < activeRequestIds.length) {
+            uint id = activeRequestIds[i];
+            Request storage req = requests[id];
+            if (req.status == RequestStatus.Failed) {
+                emit FailedRequestCleared(req.id, req.sender, block.timestamp);
+                address reqSender = _removeRequest(id);
+                request_counts[reqSender]--;
+                emit RequestRemovalSuccess(req.id, reqSender, block.timestamp, "Request successfully removed after failed request");
+                // Do not increment i because the last element was swapped in.
+            } else {
+                i++;
             }
-            i++;
         }
     }
 
@@ -283,6 +301,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
 
         try IERC20Bridgeable(evm_approvedToken).mint(receiver, amount) {
             emit BridgeTransaction(
+                request_id,
                 receiver, 
                 evm_approvedToken, 
                 amount, 
@@ -295,6 +314,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
             );
         } catch {
             emit BridgeTransaction(
+                request_id,
                 receiver, 
                 evm_approvedToken, 
                 amount, 
@@ -320,7 +340,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
         require(msg.value == fee, "Needs exact TLOS fee passed");
         require(request_counts[msg.sender] < max_requests_per_requestor, "Maximum requests reached. Please wait for them to complete before trying again.");
         require(bytes(receiver).length > 0, "Receiver must be at least 1 character");
-        require(bytes(receiver).length <= 13, "Receiver name cannot be over 13 characters");
+        require(bytes(receiver).length <= 12, "Receiver name cannot be over 12 characters");
         require(bytes(memo).length <= 32, "Memo cannot be longer than 32 characters");
         require(amount >= min_amount, "Minimum amount is not reached");
         require(address(token) == evm_approvedToken, "Wrong token!");
@@ -344,21 +364,25 @@ contract TokenBridge is Ownable, ReentrancyGuard {
         bytes32 receiver_32 = _leftAlignToBytes32(receiver);
         bytes32 memo_32     = _leftAlignToBytes32(memo);
 
-        // Burn it
+        // Burn tokens from sender.
         try token.burnFrom(msg.sender, amount) {
-            // Add a request to be picked up and processed by the Antelope side
-            requests.push(Request(
-                request_id, msg.sender,
-                amount,
-                block.timestamp,
-                antelope_token_contract,
-                antelope_symbol,
-                receiver_32,
-                evm_decimals,
-                RequestStatus.Pending,
-                memo_32
-            ));
-            
+            // Create and store the new request.
+            Request memory newReq = Request({
+                id: request_id,
+                sender: msg.sender,
+                amount: amount,
+                requested_at: block.timestamp,
+                antelope_token_contract: antelope_token_contract,
+                antelope_symbol: antelope_symbol,
+                receiver: receiver_32,
+                evm_decimals: evm_decimals,
+                status: RequestStatus.Pending,
+                memo: memo_32
+            });
+            requests[request_id] = newReq;
+            activeRequestIndex[request_id] = activeRequestIds.length;
+            activeRequestIds.push(request_id);
+
             emit BridgeRequest(
                 request_id,
                 msg.sender,
@@ -372,11 +396,9 @@ contract TokenBridge is Ownable, ReentrancyGuard {
                 RequestStatus.Pending,
                 "Request submitted."
             );
-            
             request_id++;
             request_counts[msg.sender]++;
         } catch {
-            // Burning failed... Nothing to do but revert...
             emit BridgeRequest(
                 request_id,
                 msg.sender,
@@ -390,7 +412,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
                 RequestStatus.Failed,
                 "Tokens could not be burned"
             );
-            revert('Tokens could not be burned');
+            revert("Tokens could not be burned");
         }
     }
 
@@ -400,77 +422,68 @@ contract TokenBridge is Ownable, ReentrancyGuard {
     /// @notice Called by a user to refund a timed-out request.
     /// The function mints tokens back to the original sender.
     function refundRequest(uint id) external nonReentrant {
-        // Loop through stored requests to find the matching request id.
-        for (uint256 i = 0; i < requests.length; i++) {
-            if (requests[i].id == id) {
-                // Only the original sender can trigger a refund.
-                require(requests[i].sender == msg.sender, "Not request sender");
-                // Request must be pending.
-                require(requests[i].status == RequestStatus.Pending, "Request is not pending");
-                // Ensure the request has timed out.
-                require(block.timestamp >= requests[i].requested_at + REQUEST_TIMEOUT, "Request not timed out yet");
+        Request storage req = requests[id];
+        require(req.sender == msg.sender, "Not request sender");
+        require(req.status == RequestStatus.Pending, "Request is not pending");
+        require(block.timestamp >= req.requested_at + REQUEST_TIMEOUT, "Request not timed out yet");
 
-                // Attempt to refund by minting tokens back to the request sender.
-                try IERC20Bridgeable(evm_approvedToken).mint(requests[i].sender, requests[i].amount) {
-                    emit BridgeRequest(
-                        id,
-                        requests[i].sender,
-                        evm_approvedToken,
-                        bytes32ToString(requests[i].antelope_token_contract),
-                        bytes32ToString(requests[i].antelope_symbol),
-                        requests[i].amount,
-                        bytes32ToString(requests[i].receiver),
-                        block.timestamp,
-                        "",
-                        RequestStatus.Refunded,
-                        "User initiated refund"
-                    );
-                    // Store sender before removal.
-                    address reqSender = requests[i].sender;
-                    _removeRequest(i);
-                    emit RequestRemovalSuccess(id, reqSender, block.timestamp, "Request successfully removed after user initiated refund");
-                    return;
-                } catch {
-                    revert("Refund minting failed");
-                }
-            }
+        try IERC20Bridgeable(evm_approvedToken).mint(req.sender, req.amount) {
+            emit BridgeTransaction(
+                id,
+                req.sender,
+                evm_approvedToken,
+                req.amount,
+                RequestStatus.Refunded,
+                block.timestamp,
+                "",
+                bytes32ToString(req.antelope_token_contract),
+                bytes32ToString(req.antelope_symbol),
+                "User initiated refund"
+            );
+            address reqSender = _removeRequest(id);
+            request_counts[reqSender]--;
+            emit RequestRemovalSuccess(id, reqSender, block.timestamp, "Request successfully removed after user initiated refund");
+        } catch {
+            revert("Refund minting failed");
         }
-        revert("Request not found");
     }
 
     /// @notice Called by the Antelope bridge to auto-refund timed-out requests.
     /// If minting fails, the request is marked as Failed.
-    function refundStuckReq() external onlyAntelopeBridge nonReentrant {
-        uint256 i = 0;
-        while (i < requests.length) {
-            Request storage req = requests[i];
+    function refundStuckReq() external nonReentrant {
+        require(msg.sender == antelope_bridge_evm_address || msg.sender == owner(), "Caller is not owner or Antelope bridge");
+        uint i = 0;
+        while (i < activeRequestIds.length) {
+            uint id = activeRequestIds[i];
+            Request storage req = requests[id];
             if (req.status == RequestStatus.Pending && block.timestamp >= req.requested_at + REQUEST_TIMEOUT) {
                 try IERC20Bridgeable(evm_approvedToken).mint(req.sender, req.amount) {
-                    emit BridgeRequest(
+                    emit BridgeTransaction(
                         req.id,
                         req.sender,
                         evm_approvedToken,
-                        bytes32ToString(req.antelope_token_contract),
-                        bytes32ToString(req.antelope_symbol),
                         req.amount,
-                        bytes32ToString(req.receiver),
+                        RequestStatus.Refunded,
                         block.timestamp,
                         "",
-                        RequestStatus.Refunded,
+                        bytes32ToString(req.antelope_token_contract),
+                        bytes32ToString(req.antelope_symbol),
                         "Refund triggered by the TokenBridge"
                     );
-                    // Store necessary values before removing the request.
-                    address reqSender = req.sender;
-                    uint idTemp = req.id;
-                    _removeRequest(i); // Removes the current request (swaps last element in place)
-                    emit RequestRemovalSuccess(idTemp, reqSender, block.timestamp, "Request successfully removed after auto-refund");
-                    continue; // Skip incrementing i since array size decreases.
+                    address reqSender = _removeRequest(id);
+                    request_counts[reqSender]--;
+                    emit RequestRemovalSuccess(req.id, reqSender, block.timestamp, "Request successfully removed after auto-refund");
+                    // Do not increment i because we swapped in the last element.
                 } catch {
-                    // Mark this request as "Failed" so that it is skipped in future iterations.
                     req.status = RequestStatus.Failed;
+                    address reqSender = _removeRequest(id);
+                    request_counts[reqSender]--;
+                    emit RequestRemovalSuccess(req.id, reqSender, block.timestamp, "Request removed after failed auto-refund");
+                    // Do not increment i because we swapped in the last element.
                 }
+            } else {
+                i++;
             }
-            i++;
         }
     }
 }
