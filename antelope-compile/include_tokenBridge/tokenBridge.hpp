@@ -60,9 +60,6 @@ namespace evm_bridge
             // Notifies Antelope of a bridge request in EVM and gets it ready for processing
             [[eosio::action]] void reqnotify(uint64_t req_id);
 
-            // calls an action on the EVM to refund stuck requests
-            [[eosio::action]] void refstuckreq();
-
             // Verify that a request is still present on the EVM if not release the funds
             [[eosio::action]] void verifytrx(uint64_t req_id);
 
@@ -71,5 +68,14 @@ namespace evm_bridge
 
             // Remove a request from the table
             [[eosio::action]] void rmreq(uint64_t req_id);
+
+            // calls an action on the EVM to refund stuck requests
+            [[eosio::action]] void refstuckreq();
+
+            // calls an action on the EVM to clear failed requests
+            [[eosio::action]] void clrfailedreq();
+
+            // calls an action on the EVM to remove a request
+            [[eosio::action]] void rmreqonevm(uint64_t req_id);
     };
 }

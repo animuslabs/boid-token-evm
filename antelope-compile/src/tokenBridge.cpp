@@ -269,7 +269,7 @@ namespace evm_bridge
         std::vector<uint8_t> evm_to;
         evm_to.insert(evm_to.end(), evm_contract.begin(), evm_contract.end());
 
-        // Prepare EVM function signature & arguments | Insert the function signature: c21fd05f (bridgeTo) 4 bytes
+        // Prepare EVM function signature & arguments | Insert the function signature: 2e5dcb4b (bridgeTo) 4 bytes
         std::vector<uint8_t> data;
         auto fnsig = checksum256ToValue(eosio::checksum256(toBin(EVM_BRIDGE_SIGNATURE)));
         vector<uint8_t> fnsig_bs = intx::to_byte_string(fnsig);
@@ -307,49 +307,6 @@ namespace evm_bridge
             std::make_tuple(
                 get_self(),
                 rlp::encode(current_nonce, gas_price_val, BRIDGE_GAS, evm_to, uint256_t(0), data, conf.evm_chain_id, 0, 0),
-                false,
-                std::optional<eosio::checksum160>(evm_account->address)
-            )
-        ).send();
-    };
-
-    // NEEDS TO BE TESTED!!!!!!!
-    // calls an action on the EVM to refund stuck requests
-    [[eosio::action]] void tokenbridge::refstuckreq() {
-        // Authenticate
-        require_auth(get_self());
-        
-        // Open config
-        auto conf = config_bridge.get();
-
-        // Load the EVM system config
-        evm_config_table evmconfig(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
-        auto it = evmconfig.begin();
-        check(it != evmconfig.end(), "No config row found in eosio.evm's 'config' table");
-        auto evm_conf = *it;
-
-        // Gas price calculation
-        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
-
-        // Find the EVM account of this contract
-        account_table _accounts(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
-        auto accounts_byaccount = _accounts.get_index<"byaccount"_n>();
-        auto evm_account = accounts_byaccount.require_find(get_self().value,
-            ("EVM account not found for " + std::string(BRIDGE_CONTRACT_NAME)).c_str());
-
-        // -----------------------------------------------------------------
-        // call the refundStuckReq() function on the EVM
-        auto fnsig_arr = toBin(EVM_REF_STUCK_REQ_SIGNATURE);
-        std::vector<uint8_t> data(fnsig_arr.begin(), fnsig_arr.end());
-        uint64_t current_nonce = evm_account->nonce; // Get current nonce
-        action(
-            permission_level{get_self(), "active"_n},
-            eosio::name(EVM_SYSTEM_CONTRACT),
-            "raw"_n,
-            std::make_tuple(
-                get_self(),
-                rlp::encode(current_nonce, gas_price_val, SUCCESS_CB_GAS, evm_account->address.extract_as_byte_array(),
-                            uint256_t(0), data, conf.evm_chain_id, 0, 0),
                 false,
                 std::optional<eosio::checksum160>(evm_account->address)
             )
@@ -614,5 +571,141 @@ namespace evm_bridge
         requests_table requests(get_self(), get_self().value);
         auto itr = requests.require_find(req_id, "Request not found");
         requests.erase(itr);
+    }
+
+    // calls an action on the EVM to refund Failed requests | ONLY FOR EMERGENCY USE
+    [[eosio::action]] void tokenbridge::refstuckreq() {
+        // Authenticate
+        require_auth(get_self());
+        
+        // Open config
+        auto conf = config_bridge.get();
+
+        // Load the EVM system config
+        evm_config_table evmconfig(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto it = evmconfig.begin();
+        check(it != evmconfig.end(), "No config row found in eosio.evm's 'config' table");
+        auto evm_conf = *it;
+
+        // Gas price calculation
+        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
+
+        // Find the EVM account of this contract
+        account_table _accounts(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto accounts_byaccount = _accounts.get_index<"byaccount"_n>();
+        auto evm_account = accounts_byaccount.require_find(get_self().value,
+            ("EVM account not found for " + std::string(BRIDGE_CONTRACT_NAME)).c_str());
+
+        // -----------------------------------------------------------------
+        // call the refundStuckReq() function on the EVM
+        auto fnsig = toBin(EVM_REF_STUCK_REQ_SIGNATURE);
+        std::vector<uint8_t> data(fnsig.begin(), fnsig.begin() + 4); // Use only first 4 bytes
+
+        // Update the RLP encoding to use correct bridge address:
+        uint64_t current_nonce = evm_account->nonce; // Get current nonce
+        action(
+            permission_level{get_self(), "active"_n},
+            eosio::name(EVM_SYSTEM_CONTRACT),
+            "raw"_n,
+            std::make_tuple(
+                get_self(),
+                rlp::encode(current_nonce, gas_price_val, SUCCESS_CB_GAS, 
+                           conf.evm_bridge_address.extract_as_byte_array(), // Correct to: bridge address
+                           uint256_t(0), data, conf.evm_chain_id, 0, 0),
+                false,
+                std::optional<eosio::checksum160>(evm_account->address)
+            )
+        ).send();
+    };
+
+    // calls an action on the EVM clearFailedRequests() | ONLY FOR EMERGENCY USE
+    [[eosio::action]] void tokenbridge::clrfailedreq() {
+        require_auth(get_self());
+        
+        // Open config
+        auto conf = config_bridge.get();
+
+        // Load the EVM system config
+        evm_config_table evmconfig(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto it = evmconfig.begin();
+        check(it != evmconfig.end(), "No config row found in eosio.evm's 'config' table");
+        auto evm_conf = *it;
+
+        // Gas price calculation
+        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
+
+        // Find the EVM account of this contract
+        account_table _accounts(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto accounts_byaccount = _accounts.get_index<"byaccount"_n>();
+        auto evm_account = accounts_byaccount.require_find(get_self().value,
+            ("EVM account not found for " + std::string(BRIDGE_CONTRACT_NAME)).c_str());
+
+        // -----------------------------------------------------------------
+        // call the clearFailedRequests() function on the EVM
+        auto fnsig = toBin(EVM_CLEAR_FAILED_REQUESTS_SIGNATURE);
+        std::vector<uint8_t> data(fnsig.begin(), fnsig.begin() + 4); // Use only first 4 bytes
+
+        // Update the RLP encoding to use correct bridge address:
+        uint64_t current_nonce = evm_account->nonce; // Get current nonce
+        action(
+            permission_level{get_self(), "active"_n},
+            eosio::name(EVM_SYSTEM_CONTRACT),
+            "raw"_n,
+            std::make_tuple(
+                get_self(),
+                rlp::encode(current_nonce, gas_price_val, SUCCESS_CB_GAS, 
+                           conf.evm_bridge_address.extract_as_byte_array(), // Correct to: bridge address
+                           uint256_t(0), data, conf.evm_chain_id, 0, 0),
+                false,
+                std::optional<eosio::checksum160>(evm_account->address)
+            )
+        ).send();
+    };
+
+    // calls an action on the EVM removeRequest(uint256) | ONLY FOR EMERGENCY USE
+    [[eosio::action]] void tokenbridge::rmreqonevm(uint64_t req_id) {
+        require_auth(get_self());
+        
+        // Open config
+        auto conf = config_bridge.get();
+
+        // Load EVM config
+        evm_config_table evmconfig(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto it = evmconfig.begin();
+        check(it != evmconfig.end(), "No config row found in eosio.evm's 'config' table");
+        auto evm_conf = *it;
+
+        // Gas price with 10% buffer
+        uint256_t gas_price_val = (evm_conf.gas_price * 11) / 10;
+
+        // Get EVM account
+        account_table _accounts(eosio::name(EVM_SYSTEM_CONTRACT), eosio::name(EVM_SYSTEM_CONTRACT).value);
+        auto accounts_byaccount = _accounts.get_index<"byaccount"_n>();
+        auto evm_account = accounts_byaccount.require_find(get_self().value,
+            ("EVM account not found for " + std::string(BRIDGE_CONTRACT_NAME)).c_str());
+
+        // Prepare calldata: removeRequest(uint256)
+        auto fnsig = toBin(EVM_REMOVE_REQUEST_SIGNATURE);
+        std::vector<uint8_t> data(fnsig.begin(), fnsig.begin() + 4);
+        
+        // Pack request ID as uint256
+        std::array<uint8_t, 32> req_id_bytes = uint256ToBytes(uint256_t(req_id));
+        data.insert(data.end(), req_id_bytes.begin(), req_id_bytes.end());
+
+        // Send EVM transaction
+        uint64_t current_nonce = evm_account->nonce;
+        action(
+            permission_level{get_self(), "active"_n},
+            eosio::name(EVM_SYSTEM_CONTRACT),
+            "raw"_n,
+            std::make_tuple(
+                get_self(),
+                rlp::encode(current_nonce, gas_price_val, SUCCESS_CB_GAS,
+                          conf.evm_bridge_address.extract_as_byte_array(),
+                          uint256_t(0), data, conf.evm_chain_id, 0, 0),
+                false,
+                std::optional<eosio::checksum160>(evm_account->address)
+            )
+        ).send();
     }
 }

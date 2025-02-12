@@ -42,6 +42,11 @@
             ]
         },
         {
+            "name": "clrfailedreq",
+            "base": "",
+            "fields": []
+        },
+        {
             "name": "init",
             "base": "",
             "fields": [
@@ -125,6 +130,26 @@
             ]
         },
         {
+            "name": "rmreq",
+            "base": "",
+            "fields": [
+                {
+                    "name": "req_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "rmreqonevm",
+            "base": "",
+            "fields": [
+                {
+                    "name": "req_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "verifytrx",
             "base": "",
             "fields": [
@@ -136,6 +161,11 @@
         }
     ],
     "actions": [
+        {
+            "name": "clrfailedreq",
+            "type": "clrfailedreq",
+            "ricardian_contract": ""
+        },
         {
             "name": "init",
             "type": "init",
@@ -149,6 +179,16 @@
         {
             "name": "reqnotify",
             "type": "reqnotify",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rmreq",
+            "type": "rmreq",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rmreqonevm",
+            "type": "rmreqonevm",
             "ricardian_contract": ""
         },
         {
