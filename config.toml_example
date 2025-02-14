@@ -12,6 +12,7 @@ TESTNET_EVM_CHAIN_ID="41"
 priv_key = "xxx" # key provided in old EOSIO format
 testAcc_Key = "xxx" # key provided in old EOSIO format
 EVM_PRIVATE_KEY="xxx"
+EVM_MNEMONIC="bla blablabla blablbla"
 
 [EVM_token_contract]
 TOKEN_CONTRACT_DEPLOYER_ACC="0x1D8F40d91602DF5117Bd6D97D2aC4EDE5C9FB300" # address from which you want to deploy the token contract, from private key
@@ -27,7 +28,6 @@ MAX_BRIDGE_REQUEST_PER_REQUESTOR="10"
 TOKEN_BRIDGE_SMART_CONTRACT_ADDRESS="0xa40A7FAcCe00a9f265c9259907c99afbFCd1B76B" # Bridge EVM address (TokenBridge.sol) that was deployed on the EVM side
 BRIDGE_FEE="500000000000000000" # 0.5 tokens
 BRIDGE_MIN_AMOUNT="1000000000000000000" # 1 token on the EVM side
-
 
 [Native_contracts]
 BRIDGE_CONTRACT_NAME="evm.boid"

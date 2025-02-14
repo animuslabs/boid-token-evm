@@ -11,6 +11,7 @@
     "@wharfkit/antelope": "^1.0.13",
     "@wharfkit/cli": "^2.8.0",
     "@wharfkit/contract": "^1.2.0",
+    "@wharfkit/hyperion": "^1.0.4",
     "ethers": "^6.13.5",
     "fs": "^0.0.1-security",
     "nodemon": "^3.1.9",

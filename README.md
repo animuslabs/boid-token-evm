@@ -1,3 +1,12 @@
+# Telos Native to Telos EVM bridge
+Contracts description to look at:
+[EVM Token Bridge Contract](EVM-TokenBridgeContract.md)  
+[EVM Token Contract](EVM-TokenContract.md)  
+[Native Fees Contract](Native-FeesContract.md)  
+[Native Token Bridge Contract](Native-TokenBridgeContract.md)
+
+UI for the bridge done in quasar: [UI](https://github.com/animuslabs/boid-bridge-ui)
+
 # Deployment steps
 - to create account on Telos Native if you need to do it through m-sign you can use this tool: https://msig.animus.is also to deploy smart contracts
 - useful script to change permissions an Telos Native account - util/accKeys.ts
@@ -36,12 +45,12 @@ yarn install
 yarn build
 node dist/compile_contract.js 1
 ```
-#### Deploy
+#### Deploy EVM side
 ```
 node dist/contracts_deploy.js testnet 1
 ```
 
-!IMPORTANT! - after you deployed thetoken contract, update the config.toml file with the new token contract address TOKEN_CONTRACT_DEPLOYED_ACC
+!IMPORTANT! - after you deployed the token contract, update the config.toml file with the new token contract address TOKEN_CONTRACT_DEPLOYED_ACC. Do not deploy the TokenBridge contract until you do that!!!
 
 When contract is deployed you should verify it on https://sourcify.dev  
 Example already done on Telos Testnet EVM 0x00B2656e963242BbA1B6Ba618c72c86eb839a1C9
@@ -67,15 +76,12 @@ cd evm-compile-deploy
 node dist/util/deploy_contract.js testnet 2
 ```
 
-## Setting up deployed smart contracts
-### Native side
+## Setting up deployed native smart contracts
 #### xsend.boid (feeForwarder.cpp contract source file)
 1. in configuration-testing\src\config\feeForwarderConfig.ts run setGlobalConfig function
 2. then regtoken function
 3. now the fee contract is configured and ready to go
 
-
-###### TODO NOT FINISHED README!!!
 #### evm.boid (tokenBridge.cpp contract source file)
 1. in configuration-testing\src\config\tokenBridgeConfig.ts run initiateContract function to initiate the contract with proper settings
 - evm_bridge_address - 0x... address for evm deployed bridge smart contract
@@ -86,7 +92,3 @@ node dist/util/deploy_contract.js testnet 2
 - fees_contract - native contract that will be accepting fees
 - is_locked - locking the setup for the smart contract
 
-### EVM side
-#### 0x06D06ee31B0b4Bc83Bc6D1745B79f741D802d1e1 (TokenBridge.sol contract source file)
-
-####  0x932Ebc45117A00be19b27A586142b94d14D8a8aA (TokenContract.sol contract source file)
