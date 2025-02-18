@@ -137,7 +137,7 @@ export async function sendTLOS(chain: "mainnet" | "testnet") {
 export async function sendBOID(chain: "mainnet" | "testnet") {
     try {
         const acc = "3boidanimus3";
-        const fee = "10.0000 BOID";
+        const fee = "5000.0233 BOID";
         
         const dataObject: TknBoidActionParams.transfer = {
             from: Name.from(acc),
@@ -162,4 +162,18 @@ export async function sendBOID(chain: "mainnet" | "testnet") {
     }
   };
 
-// sendBOID("testnet");
+sendBOID("testnet");
+
+// function to send TLOS fee then wait 1s and send BOID
+async function testTrx() {
+  try {
+    await sendTLOS("testnet")
+    // Wait 1 second before sending BOID
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await sendBOID("testnet");
+    console.log("Fee forwarded successfully: TLOS fee sent and BOID transferred.");
+  } catch (error) {
+    console.error("Error in testTrx:", error);
+  }
+}
+// testTrx()
