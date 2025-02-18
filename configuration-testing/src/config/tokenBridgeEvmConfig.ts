@@ -160,7 +160,7 @@ async function getRequestById(provider: any, contractAddress: string, requestId:
     return {
       id: Number(requestId),
       sender: "0x" + sender.slice(-40),
-      amount: (Number(ethers.formatUnits(BigInt(amount), evmDecimals)).toFixed(0)),
+      amount,
       requested_at: new Date(Number(BigInt(requestedAt)) * 1000),
       antelope_token_contract: parseBytes32ToString(tokenContract),
       antelope_symbol: parseBytes32ToString(symbol),

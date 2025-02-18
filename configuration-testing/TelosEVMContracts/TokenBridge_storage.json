@@ -1,7 +1,7 @@
 {
   "storage": [
     {
-      "astId": 1378,
+      "astId": 1380,
       "contract": "TokenBridge.sol:TokenBridge",
       "label": "_owner",
       "offset": 0,
@@ -9,7 +9,7 @@
       "type": "t_address"
     },
     {
-      "astId": 1788,
+      "astId": 1790,
       "contract": "TokenBridge.sol:TokenBridge",
       "label": "_status",
       "offset": 0,

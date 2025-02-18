@@ -492,7 +492,7 @@ namespace evm_bridge
         check(existing_request == _requests.end(), 
             ("Request ID " + intx::to_string(stored_req_id) + " already exists").c_str());
 
-        uint64_t wei_scale_factor = 1000000000000000000ULL; // 1e18 for ETH decimals
+        uint64_t wei_scale_factor = 100000000000000ULL; // 1e14
         _requests.emplace(get_self(), [&](auto& r) {
             r.request_id = static_cast<uint64_t>(stored_req_id);
             
@@ -500,7 +500,17 @@ namespace evm_bridge
             r.timestamp = time_point(seconds(evm_timestamp_sec));
             
             uint64_t amount = static_cast<uint64_t>(amountVal / wei_scale_factor);
-            check(amountVal == amount * wei_scale_factor, "Precision loss detected");
+            // Build a `uint256_t` of the expected product:
+            uint256_t expected = uint256_t(amount) * uint256_t(wei_scale_factor);
+
+            // Compare the 256-bit numbers in the check error message:
+            check(amountVal == expected,
+                (
+                "Precision loss detected. \n"
+                "amountVal: " + intx::to_string(amountVal) + "\n"
+                "expected:  " + intx::to_string(expected) + "\n"
+                ).c_str()
+            );
             r.amount = amount;
             
             r.processed = false;
@@ -546,9 +556,8 @@ namespace evm_bridge
              bin2hex(baseKey.extract_as_byte_array())).c_str());
 
         // 4. Process transfer
-        uint8_t decimals = conf.native_token_symbol.precision(); // Get decimals from symbol (e.g. 4)
-        uint64_t scaled_amount = itr_req->amount * pow(10, decimals); // Convert whole number to asset units
-        asset quantity(scaled_amount, conf.native_token_symbol);
+        uint64_t final_units = itr_req->amount; 
+        asset quantity(final_units, conf.native_token_symbol);
         
         action(
             permission_level{get_self(), "active"_n},

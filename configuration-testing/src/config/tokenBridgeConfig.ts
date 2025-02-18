@@ -46,7 +46,7 @@ export async function initiateContract(chain: "mainnet" | "testnet") {
     }
   };
 
-// initiateContract("testnet");
+initiateContract("testnet");
 
 // Processes bridging requests from the EVM to Antelope by transferring or minting tokens for the specified recipient and notifying the EVM of successful completion.
 export async function reqnotify(chain: "mainnet" | "testnet", req_id: number) {
@@ -73,9 +73,9 @@ export async function reqnotify(chain: "mainnet" | "testnet", req_id: number) {
     }
     };
 
-reqnotify("testnet", 6);
-reqnotify("testnet", 7);
-reqnotify("testnet", 5);
+// reqnotify("testnet", 6);
+// reqnotify("testnet", 7);
+// reqnotify("testnet", 5);
 
 // function to refund stuck requests
 export async function refundStuckReq(chain: "mainnet" | "testnet") {

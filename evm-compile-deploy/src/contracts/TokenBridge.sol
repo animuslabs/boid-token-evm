@@ -351,7 +351,7 @@ contract TokenBridge is Ownable, ReentrancyGuard {
         require(sanitized_amount * exponent == amount, "Amount must not have more decimal places than the Antelope token");
 
         // Enforce sanitized amount under C++ uint64_t max (for Antelope transfer)
-        require(sanitized_amount <= 1000000000, "Amount is too high to bridge");
+        require(sanitized_amount <= 10**12, "Amount is too high to bridge");
 
         // Check allowance is ok
         uint remaining = token.allowance(msg.sender, address(this));
