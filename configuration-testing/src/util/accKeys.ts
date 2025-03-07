@@ -101,52 +101,55 @@ export async function checkAccountInfo(
 // checkAccountInfo("testnet", "evm.boid", "token.boid", "BOID").then(console.log).catch(console.error);
 // checkAccountInfo("testnet", "xsend.boid", "token.boid", "BOID").then(console.log).catch(console.error);
 
-// (async () => {
-//     try {
-//         const acc = "xsend.boid";
-//         const auth = Authority.from({
-//                 threshold: 1,
-//                 keys: [
-//                     {
-//                         key: "EOS6FoTSwiKk27SJ1kANdJFmso3KbECASAMDpEka4dG9p1ub6GqiH",
-//                         weight: 1
-//                     },
-//                     {
-//                         key: "EOS8SK3XvkYBoKmgRaiwS1nq1fiUrmvmQ4qU1gt1PyiDNNTSZRLfF",
-//                         weight: 1
-//                     }
-//                 ],
-//                 accounts: [
-//                     {
-//                         permission: {
-//                             actor: acc,
-//                             permission: "eosio.code",
-//                         },
-//                         weight: 1,
-//                     },
-//                 ]
-//         });
+(async () => {
+    try {
+        const acc = "evm.boid";
+        const auth = Authority.from({
+                threshold: 1,
+                keys: [
+                    {
+                        key: "EOS4vjtUmGAXZGyAXrwGnnu5LhSTgwBuVC58CxFN3ZEtd9HPgPJ5u",
+                        weight: 1
+                    }
+                ],
+                accounts: [
+                    {
+                        permission: {
+                            actor: acc,
+                            permission: "eosio.code",
+                        },
+                        weight: 1,
+                    },
+                    {
+                        permission: {
+                            actor: acc,
+                            permission: "owner",
+                        },
+                        weight: 1,
+                    }
+                ]
+        });
         
-//         const dataObject = {
-//                 account: Name.from(acc),
-//                 permission: Name.from("active"),
-//                 parent: Name.from("owner"),
-//                 auth
-//             };
-//         createAndSendAction(
-//             "testnet",
-//             "eosio",
-//             "updateauth",
-//             acc,
-//             "active",
-//             dataObject,
-//             key
-//         )
+        const dataObject = {
+                account: Name.from(acc),
+                permission: Name.from("active"),
+                parent: Name.from("owner"),
+                auth
+            };
+        createAndSendAction(
+            "mainnet",
+            "eosio",
+            "updateauth",
+            acc,
+            "active",
+            dataObject,
+            key
+        )
 
-//       console.log("Permission update action successfully sent!");
-//     } catch (error) {
-//       const err = error as Error;
-//       console.error("Error during permission update flow:", err.message, err.stack);
-//     }
-//   })();
+      console.log("Permission update action successfully sent!");
+    } catch (error) {
+      const err = error as Error;
+      console.error("Error during permission update flow:", err.message, err.stack);
+    }
+  })();
   

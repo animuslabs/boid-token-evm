@@ -20,3 +20,4 @@ function generateEthereumAccount() {
 
 // Example usage
 const newAccount = generateEthereumAccount();
+console.log(newAccount);

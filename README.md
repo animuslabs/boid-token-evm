@@ -40,7 +40,7 @@ npx @wharfkit/cli generate evm.boid -u https://telos.testnet.boid.animus.is -f e
 ## Deploy BOID token smart contract (OFT standard - TokenContract.sol)
 #### Compilation
 ```
-cd evm/contracts_deploy
+cd evm-compile-deploy
 yarn install
 yarn build
 node dist/compile_contract.js 1
@@ -78,7 +78,7 @@ node dist/util/deploy_contract.js testnet 2
 
 ## Setting up deployed native smart contracts
 #### xsend.boid (feeForwarder.cpp contract source file)
-1. in configuration-testing\src\config\feeForwarderConfig.ts run setGlobalConfig function
+1. in configuration-testing\src\config\feeForwarderConfig.ts run setGlobalConfig function (make sure to change the evm_memo field!)
 2. then regtoken function
 3. now the fee contract is configured and ready to go
 

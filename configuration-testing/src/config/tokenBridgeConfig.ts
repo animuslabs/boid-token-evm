@@ -46,7 +46,7 @@ export async function initiateContract(chain: "mainnet" | "testnet") {
     }
   };
 
-initiateContract("testnet");
+initiateContract("mainnet");
 
 // Processes bridging requests from the EVM to Antelope by transferring or minting tokens for the specified recipient and notifying the EVM of successful completion.
 export async function reqnotify(chain: "mainnet" | "testnet", req_id: number) {

@@ -24,7 +24,7 @@ export async function setGlobalConfig(chain: "mainnet" | "testnet") {
             fee_token_contract: Name.from("eosio.token"),
             fee_token_symbol: Asset.Symbol.from("4,TLOS"),
             bridge_account: Name.from("evm.boid"),
-            evm_memo: "0x245ae39b8bd7074febfbf94a8310498e015cc0cb",
+            evm_memo: "0xd9ab55e4ce8d6f0a567fbf7698be1673446f16fa", // evm.boid acc generated address on the EVM side
             fee_receiver: Name.from("eosio.evm")
         };
         createAndSendAction(
@@ -44,7 +44,7 @@ export async function setGlobalConfig(chain: "mainnet" | "testnet") {
     }
   };
 
-// setGlobalConfig("testnet");
+// setGlobalConfig("mainnet");
 
 // Register token to be used in the bridge
 export async function regtoken(chain: "mainnet" | "testnet") {
@@ -53,8 +53,8 @@ export async function regtoken(chain: "mainnet" | "testnet") {
         
         const dataObject: XsendBoidActionParams.regtoken = {
             token_contract: Name.from("token.boid"),
-            token_symbol: Asset.Symbol.from("4,BOISD"),
-            min_amount: Asset.from("1.0000 BOISD")
+            token_symbol: Asset.Symbol.from("4,BOID"),
+            min_amount: Asset.from("1.0000 BOID")
         };
         createAndSendAction(
             chain,
@@ -73,7 +73,7 @@ export async function regtoken(chain: "mainnet" | "testnet") {
     }
   };
 
-// regtoken("testnet");
+regtoken("mainnet");
 
 // remove token from the contract
 export async function deltoken(chain: "mainnet" | "testnet") {
@@ -100,12 +100,12 @@ export async function deltoken(chain: "mainnet" | "testnet") {
     }
   };
 
-// deltoken("testnet");
+// deltoken("mainnet");
 
 // send TLOS to the fee forwarder contract
 export async function sendTLOS(chain: "mainnet" | "testnet") {
     try {
-        const acc = "3boidanimus3";
+        const acc = "bp.boid";
         const fee = "0.5000 TLOS";
         
         const dataObject: EosioTknActionParams.transfer = {
@@ -121,7 +121,7 @@ export async function sendTLOS(chain: "mainnet" | "testnet") {
             acc,
             "active",
             dataObject,
-            testAccKey
+            key
         )
 
       console.log("Action successfully sent!");
@@ -136,8 +136,8 @@ export async function sendTLOS(chain: "mainnet" | "testnet") {
 // send BOID to the fee forwarder contract
 export async function sendBOID(chain: "mainnet" | "testnet") {
     try {
-        const acc = "3boidanimus3";
-        const fee = "5000.0233 BOID";
+        const acc = "bp.boid";
+        const fee = "33.0000 BOID";
         
         const dataObject: TknBoidActionParams.transfer = {
             from: Name.from(acc),
@@ -152,7 +152,7 @@ export async function sendBOID(chain: "mainnet" | "testnet") {
             acc,
             "active",
             dataObject,
-            testAccKey
+            key
         )
 
       console.log("Action successfully sent!");
@@ -162,18 +162,18 @@ export async function sendBOID(chain: "mainnet" | "testnet") {
     }
   };
 
-sendBOID("testnet");
+// sendBOID("testnet");
 
 // function to send TLOS fee then wait 1s and send BOID
-async function testTrx() {
-  try {
-    await sendTLOS("testnet")
-    // Wait 1 second before sending BOID
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    await sendBOID("testnet");
-    console.log("Fee forwarded successfully: TLOS fee sent and BOID transferred.");
-  } catch (error) {
-    console.error("Error in testTrx:", error);
-  }
-}
+// async function testTrx() {
+//   try {
+//     // await sendTLOS("mainnet")
+//     // // Wait 1 second before sending BOID
+//     // await new Promise(resolve => setTimeout(resolve, 1000));
+//     await sendBOID("mainnet");
+//     console.log("Fee forwarded successfully: TLOS fee sent and BOID transferred.");
+//   } catch (error) {
+//     console.error("Error in testTrx:", error);
+//   }
+// }
 // testTrx()
